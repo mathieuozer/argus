@@ -184,7 +184,7 @@ func (c *Client) addSpan(sd spanData) {
 	defer c.mu.Unlock()
 	c.spans = append(c.spans, sd)
 	if len(c.spans) >= c.batchSize {
-		go c.Flush()
+		go func() { _ = c.Flush() }()
 	}
 }
 
@@ -295,7 +295,7 @@ func (c *Client) flushLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			c.Flush()
+			_ = c.Flush()
 		case <-c.stopCh:
 			return
 		}

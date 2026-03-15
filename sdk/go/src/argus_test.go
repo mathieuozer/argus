@@ -12,7 +12,7 @@ import (
 
 func TestNewClient(t *testing.T) {
 	c := NewClient()
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	if c.endpoint != "http://localhost:8080" {
 		t.Errorf("endpoint = %q, want %q", c.endpoint, "http://localhost:8080")
@@ -30,7 +30,7 @@ func TestNewClientWithOptions(t *testing.T) {
 		WithBatchSize(50),
 		WithFlushInterval(10*time.Second),
 	)
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	if c.endpoint != "http://custom:9090" {
 		t.Errorf("endpoint = %q", c.endpoint)
@@ -48,7 +48,7 @@ func TestNewClientWithOptions(t *testing.T) {
 
 func TestStartSpan(t *testing.T) {
 	c := NewClient()
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	ctx := context.Background()
 	span, newCtx := c.StartSpan(ctx, "test-operation")
@@ -81,7 +81,7 @@ func TestStartSpan(t *testing.T) {
 
 func TestSpanContextPropagation(t *testing.T) {
 	c := NewClient()
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	ctx := context.Background()
 	parentSpan, ctx := c.StartSpan(ctx, "parent")
@@ -106,7 +106,7 @@ func TestSpanFromContextEmpty(t *testing.T) {
 
 func TestSpanSetAttribute(t *testing.T) {
 	c := NewClient()
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	span, _ := c.StartSpan(context.Background(), "test")
 	span.SetAttribute("key1", "value1")
@@ -122,7 +122,7 @@ func TestSpanSetAttribute(t *testing.T) {
 
 func TestSpanSetError(t *testing.T) {
 	c := NewClient()
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	span, _ := c.StartSpan(context.Background(), "test")
 
@@ -143,7 +143,7 @@ func TestSpanSetError(t *testing.T) {
 
 func TestSpanEnd(t *testing.T) {
 	c := NewClient(WithFlushInterval(1 * time.Hour)) // prevent auto flush
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	span, _ := c.StartSpan(context.Background(), "test")
 	time.Sleep(1 * time.Millisecond)
@@ -156,7 +156,7 @@ func TestSpanEnd(t *testing.T) {
 
 func TestEmitEvent(t *testing.T) {
 	c := NewClient(WithFlushInterval(1 * time.Hour))
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	err := c.EmitEvent(context.Background(), "task.completed", map[string]string{
 		"task_id": "t1",
@@ -177,7 +177,7 @@ func TestFlushSendsToServer(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]json.RawMessage
-		json.NewDecoder(r.Body).Decode(&body)
+		_ = json.NewDecoder(r.Body).Decode(&body)
 
 		if r.Header.Get("Content-Type") != "application/json" {
 			t.Error("expected Content-Type: application/json")
@@ -203,12 +203,12 @@ func TestFlushSendsToServer(t *testing.T) {
 		WithAgentID("a1"),
 		WithFlushInterval(1*time.Hour),
 	)
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	span, _ := c.StartSpan(context.Background(), "op1")
 	span.End()
 
-	c.EmitEvent(context.Background(), "test", map[string]string{"k": "v"})
+	_ = c.EmitEvent(context.Background(), "test", map[string]string{"k": "v"})
 
 	err := c.Flush()
 	if err != nil {
@@ -233,7 +233,7 @@ func TestFlushSendsToServer(t *testing.T) {
 
 func TestFlushEmptyIsNoop(t *testing.T) {
 	c := NewClient(WithFlushInterval(1 * time.Hour))
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	err := c.Flush()
 	if err != nil {
@@ -251,7 +251,7 @@ func TestFlushServerError(t *testing.T) {
 		WithEndpoint(srv.URL),
 		WithFlushInterval(1*time.Hour),
 	)
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	span, _ := c.StartSpan(context.Background(), "test")
 	span.End()
