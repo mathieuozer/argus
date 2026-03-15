@@ -95,10 +95,12 @@ func main() {
 
 		// Store key material in vault
 		vaultPath := fmt.Sprintf("identity/%s/%s", tenantID, req.AgentID)
-		vaultClient.Store(vaultPath, map[string][]byte{
+		if err := vaultClient.Store(vaultPath, map[string][]byte{
 			"cert": certPEM,
 			"key":  keyPEM,
-		})
+		}); err != nil {
+			log.Error("failed to store key material in vault", zap.String("path", vaultPath), zap.Error(err))
+		}
 
 		writeJSON(w, http.StatusCreated, map[string]interface{}{
 			"spiffe_id":  spiffeID,

@@ -120,7 +120,9 @@ func main() {
 	log.Info("shutting down sidecar")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	srv.Shutdown(ctx)
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Error("HTTP server shutdown error", zap.Error(err))
+	}
 
 	_ = telEmitter
 }
