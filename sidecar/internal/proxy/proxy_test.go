@@ -143,7 +143,7 @@ func TestResponseWriter_CapturesStatusAndBytes(t *testing.T) {
 
 			rw.WriteHeader(tc.statusCode)
 			if tc.body != "" {
-				rw.Write([]byte(tc.body))
+				_, _ = rw.Write([]byte(tc.body))
 			}
 
 			if rw.statusCode != tc.expectedStatus {
@@ -161,7 +161,7 @@ func TestServeHTTP_FullRoundTrip(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, `{"data":"ok","path":"`+r.URL.Path+`"}`)
+		_, _ = io.WriteString(w, `{"data":"ok","path":"`+r.URL.Path+`"}`)
 	}))
 	defer upstream.Close()
 

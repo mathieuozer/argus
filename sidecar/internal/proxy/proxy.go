@@ -16,9 +16,7 @@ type Proxy struct {
 	logger        *zap.Logger
 	upstreamAddr  string
 	reverseProxy  *httputil.ReverseProxy
-	requestCount  int64
-	bytesSent     int64
-	bytesReceived int64
+	requestCount int64
 }
 
 // New creates a new transparent proxy.

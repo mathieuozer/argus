@@ -63,7 +63,7 @@ func TestRegister_Success(t *testing.T) {
 		defer r.Body.Close()
 
 		mu.Lock()
-		json.Unmarshal(body, &receivedBody)
+		_ = json.Unmarshal(body, &receivedBody)
 		receivedHeaders = r.Header.Clone()
 		mu.Unlock()
 
@@ -186,7 +186,7 @@ func TestSendHeartbeat_AfterRegistration(t *testing.T) {
 
 		body, _ := io.ReadAll(r.Body)
 		defer r.Body.Close()
-		json.Unmarshal(body, &heartbeatBody)
+		_ = json.Unmarshal(body, &heartbeatBody)
 
 		w.WriteHeader(http.StatusOK)
 	}))
