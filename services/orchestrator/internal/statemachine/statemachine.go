@@ -107,3 +107,46 @@ func (sm *StateMachine) Get(taskID string) (*Task, error) {
 	}
 	return task, nil
 }
+
+// ListByTenant returns all tasks for a given tenant.
+func (sm *StateMachine) ListByTenant(tenantID string) []*Task {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	var result []*Task
+	for _, t := range sm.tasks {
+		if t.TenantID == tenantID {
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
+// ListByAgent returns all tasks for a given agent within a tenant.
+func (sm *StateMachine) ListByAgent(tenantID, agentID string) []*Task {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	var result []*Task
+	for _, t := range sm.tasks {
+		if t.TenantID == tenantID && t.AgentID == agentID {
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
+// UpdateCost updates the cost and token usage for a task.
+func (sm *StateMachine) UpdateCost(taskID string, costUSD float64, tokensUsed int64) error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	task, ok := sm.tasks[taskID]
+	if !ok {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+
+	task.CostUSD += costUSD
+	task.TokensUsed += tokensUsed
+	return nil
+}

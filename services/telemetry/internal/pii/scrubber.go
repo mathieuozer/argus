@@ -18,13 +18,15 @@ type Pattern struct {
 }
 
 // DefaultPatterns returns the default PII patterns.
+// Order matters: more specific patterns must come first to prevent
+// partial matches by broader patterns (e.g., credit card before phone).
 func DefaultPatterns() []*Pattern {
 	return []*Pattern{
 		{Name: "email", Regex: regexp.MustCompile(`[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}`), Replace: "[EMAIL_REDACTED]"},
-		{Name: "ip_address", Regex: regexp.MustCompile(`\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`), Replace: "[IP_REDACTED]"},
-		{Name: "phone", Regex: regexp.MustCompile(`\b\+?\d{1,3}[\s\-]?\(?\d{2,4}\)?[\s\-]?\d{3,4}[\s\-]?\d{3,4}\b`), Replace: "[PHONE_REDACTED]"},
 		{Name: "credit_card", Regex: regexp.MustCompile(`\b\d{4}[\s\-]?\d{4}[\s\-]?\d{4}[\s\-]?\d{4}\b`), Replace: "[CC_REDACTED]"},
 		{Name: "iban", Regex: regexp.MustCompile(`\b[A-Z]{2}\d{2}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{0,2}\b`), Replace: "[IBAN_REDACTED]"},
+		{Name: "ip_address", Regex: regexp.MustCompile(`\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`), Replace: "[IP_REDACTED]"},
+		{Name: "phone", Regex: regexp.MustCompile(`(?:\+?\d{1,3}[\s\-])?\(?\d{2,4}\)?[\s\-]\d{3,4}[\s\-]\d{3,4}`), Replace: "[PHONE_REDACTED]"},
 	}
 }
 

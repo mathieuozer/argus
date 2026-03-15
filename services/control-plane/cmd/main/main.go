@@ -15,7 +15,11 @@ import (
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/pkg/tenancy"
+	"github.com/argus-platform/argus/services/control-plane/internal/alerts"
 	"github.com/argus-platform/argus/services/control-plane/internal/audit"
+	"github.com/argus-platform/argus/services/control-plane/internal/auth"
+	"github.com/argus-platform/argus/services/control-plane/internal/dashboard"
+	"github.com/argus-platform/argus/services/control-plane/internal/policy"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -30,7 +34,12 @@ func main() {
 	log := logger.Default()
 	defer log.Sync()
 
+	// Initialize components
 	auditLog := audit.NewWriter()
+	alertRouter := alerts.NewRouter()
+	policyEngine := policy.New()
+	jwtAuth := auth.New(os.Getenv("ARGUS_JWT_SECRET"))
+	dashHandler := dashboard.New(alertRouter, auditLog)
 
 	// gRPC server
 	grpcServer := grpc.NewServer(
@@ -56,53 +65,116 @@ func main() {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	// Dashboard API - agents list (proxied from orchestrator in prod, stub here)
-	mux.Handle("/api/v1/agents", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tenantID, _ := tenancy.FromContext(r.Context())
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"data": []interface{}{},
-			"meta": map[string]string{"tenant_id": tenantID},
-		})
-	})))
+	// Dashboard endpoints (alerts, audit)
+	dashHandler.RegisterRoutes(mux)
 
-	// Dashboard API - metrics
-	mux.Handle("/api/v1/metrics", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tenantID, _ := tenancy.FromContext(r.Context())
+	// Auth endpoint - generate tokens (dev mode)
+	mux.HandleFunc("/api/v1/auth/token", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+
+		var req struct {
+			Subject  string `json:"subject"`
+			TenantID string `json:"tenant_id"`
+			Role     string `json:"role"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			return
+		}
+
+		claims := &auth.Claims{
+			Sub:      req.Subject,
+			TenantID: req.TenantID,
+			Role:     auth.Role(req.Role),
+			Iat:      time.Now().Unix(),
+			Exp:      time.Now().Add(24 * time.Hour).Unix(),
+		}
+
+		token, err := jwtAuth.GenerateToken(claims)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
+			return
+		}
+
+		auditLog.Write(req.TenantID, req.Subject, "generate_token", "auth/token", "role: "+req.Role)
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"data": map[string]interface{}{
-				"total_agents": 0,
-				"active_tasks": 0,
-				"total_cost":   0.0,
-				"alert_count":  0,
+				"token":      token,
+				"expires_at": time.Now().Add(24 * time.Hour).Format(time.RFC3339),
 			},
-			"meta": map[string]string{"tenant_id": tenantID},
 		})
-	})))
+	})
 
-	// Dashboard API - alerts
-	mux.Handle("/api/v1/alerts", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Policy endpoints
+	mux.Handle("/api/v1/policies", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID, _ := tenancy.FromContext(r.Context())
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"data": []interface{}{},
-			"meta": map[string]string{"tenant_id": tenantID},
-		})
+		switch r.Method {
+		case http.MethodGet:
+			rules := policyEngine.ListRules(tenantID)
+			writeJSON(w, http.StatusOK, rules, tenantID)
+		case http.MethodPost:
+			var rule policy.Rule
+			if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
+				writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+				return
+			}
+			policyEngine.AddRule(tenantID, &rule)
+			auditLog.Write(tenantID, "system", "create_policy", "policy/"+rule.ID, "")
+			writeJSON(w, http.StatusCreated, rule, tenantID)
+		default:
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		}
 	})))
 
-	// Audit log endpoint
-	mux.Handle("/api/v1/audit", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Policy evaluation endpoint
+	mux.Handle("/api/v1/policies/evaluate", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID, _ := tenancy.FromContext(r.Context())
-		entries := auditLog.List(tenantID)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"data": entries,
-			"meta": map[string]string{"tenant_id": tenantID},
-		})
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+
+		var req struct {
+			Subject  string `json:"subject"`
+			Action   string `json:"action"`
+			Resource string `json:"resource"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			return
+		}
+
+		allowed, err := policyEngine.Evaluate(tenantID, req.Subject, policy.Action(req.Action), req.Resource)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]bool{"allowed": allowed}, tenantID)
 	})))
 
-	handler := middleware.CORS(middleware.RequestLogger(log)(mux))
+	// Metrics endpoint
+	mux.Handle("/api/v1/metrics", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tenantID, _ := tenancy.FromContext(r.Context())
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"total_agents": 0,
+			"active_tasks": 0,
+			"total_cost":   0.0,
+			"alert_count":  alertRouter.Count(tenantID),
+		}, tenantID)
+	})))
+
+	// Wrap with auth + tenant + logging middleware
+	handler := middleware.CORS(
+		jwtAuth.Middleware(
+			middleware.RequestLogger(log)(mux),
+		),
+	)
 
 	httpSrv := &http.Server{
 		Addr:         ":8084",
@@ -128,4 +200,24 @@ func main() {
 	defer cancel()
 	httpSrv.Shutdown(ctx)
 	_ = cfg
+}
+
+func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"data": data,
+		"meta": map[string]string{"tenant_id": tenantID},
+	})
+}
+
+func writeError(w http.ResponseWriter, status int, code, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"error": map[string]string{
+			"code":    code,
+			"message": message,
+		},
+	})
 }
