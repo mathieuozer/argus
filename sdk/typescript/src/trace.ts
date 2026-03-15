@@ -2,10 +2,47 @@ import { ArgusClient, Span } from './client';
 
 let defaultClient: ArgusClient | null = null;
 
-export function init(endpoint: string = 'localhost:8080', tenantId: string = ''): void {
-  defaultClient = new ArgusClient({ endpoint, tenantId });
+/**
+ * Initialize the default Argus client for decorator usage.
+ */
+export function init(config: {
+  endpoint?: string;
+  tenantId?: string;
+  agentId?: string;
+} = {}): ArgusClient {
+  defaultClient = new ArgusClient(config);
+  return defaultClient;
 }
 
+/**
+ * Get the default client.
+ */
+export function getClient(): ArgusClient | null {
+  return defaultClient;
+}
+
+/**
+ * Close the default client.
+ */
+export async function shutdown(): Promise<void> {
+  if (defaultClient) {
+    await defaultClient.close();
+    defaultClient = null;
+  }
+}
+
+/**
+ * Method decorator that traces function execution.
+ *
+ * Usage:
+ *   class MyService {
+ *     @trace()
+ *     async doWork() { ... }
+ *
+ *     @trace('custom-name')
+ *     doSync() { ... }
+ *   }
+ */
 export function trace(name?: string) {
   return function (
     target: any,
@@ -30,7 +67,7 @@ export function trace(name?: string) {
               return res;
             })
             .catch((err: Error) => {
-              span.setAttribute('error', err.name);
+              span.setError(err);
               span.end();
               throw err;
             });
@@ -38,7 +75,7 @@ export function trace(name?: string) {
         span.end();
         return result;
       } catch (err: any) {
-        span.setAttribute('error', err.name);
+        span.setError(err);
         span.end();
         throw err;
       }
@@ -46,4 +83,28 @@ export function trace(name?: string) {
 
     return descriptor;
   };
+}
+
+/**
+ * Wraps an async function with tracing (for use without decorators).
+ *
+ * Usage:
+ *   const tracedFn = traced('my-operation', async () => { ... });
+ */
+export function traced<T>(name: string, fn: () => Promise<T>): Promise<T> {
+  if (!defaultClient) {
+    return fn();
+  }
+
+  const span = defaultClient.startSpan(name);
+  return fn()
+    .then((result) => {
+      span.end();
+      return result;
+    })
+    .catch((err: Error) => {
+      span.setError(err);
+      span.end();
+      throw err;
+    });
 }

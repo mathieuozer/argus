@@ -1,4 +1,4 @@
-# Argus Sidecar Proxy
+# Argus Control-Plane Service
 # Multi-stage build: Go builder -> minimal Alpine runtime
 
 # ── Stage 1: Build ───────────────────────────────────────────────────────────
@@ -13,19 +13,19 @@ COPY go.work go.work
 
 # Copy go.mod and go.sum for dependency caching
 COPY pkg/go.mod pkg/go.sum* pkg/
-COPY sidecar/go.mod sidecar/go.sum* sidecar/
+COPY services/control-plane/go.mod services/control-plane/go.sum* services/control-plane/
 
 # Download dependencies (cached layer)
-RUN cd sidecar && go mod download
+RUN cd services/control-plane && go mod download
 
 # Copy full source
 COPY pkg/ pkg/
-COPY sidecar/ sidecar/
+COPY services/control-plane/ services/control-plane/
 
 # Build static binary
-RUN cd sidecar && \
+RUN cd services/control-plane && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags="-s -w" -o /app/sidecar ./cmd/main
+    go build -trimpath -ldflags="-s -w" -o /app/control-plane ./cmd/main
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM alpine:3.19
@@ -36,8 +36,8 @@ RUN apk add --no-cache ca-certificates tzdata
 RUN addgroup -S argus && adduser -S argus -G argus
 USER argus
 
-COPY --from=builder /app/sidecar /usr/local/bin/sidecar
+COPY --from=builder /app/control-plane /usr/local/bin/control-plane
 
-EXPOSE 8090
+EXPOSE 8084 9084
 
-ENTRYPOINT ["/usr/local/bin/sidecar"]
+ENTRYPOINT ["/usr/local/bin/control-plane"]

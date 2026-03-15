@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sort"
 
 	"github.com/argus-platform/argus/pkg/config"
 	"go.uber.org/zap"
@@ -18,6 +19,19 @@ var ServiceRoutes = map[string]string{
 	"/api/v1/":          "http://localhost:8084",
 }
 
+// sortedPrefixes returns route prefixes sorted by length descending
+// so that longer (more specific) prefixes match first.
+func sortedPrefixes() []string {
+	prefixes := make([]string, 0, len(ServiceRoutes))
+	for p := range ServiceRoutes {
+		prefixes = append(prefixes, p)
+	}
+	sort.Slice(prefixes, func(i, j int) bool {
+		return len(prefixes[i]) > len(prefixes[j])
+	})
+	return prefixes
+}
+
 // Proxy is a reverse proxy that routes requests to backend services.
 type Proxy struct {
 	cfg    *config.Base
@@ -30,8 +44,10 @@ func New(cfg *config.Base, logger *zap.Logger) *Proxy {
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	for prefix, target := range ServiceRoutes {
+	// Match longest prefix first to avoid catch-all matching before specific routes
+	for _, prefix := range sortedPrefixes() {
 		if len(r.URL.Path) >= len(prefix) && r.URL.Path[:len(prefix)] == prefix {
+			target := ServiceRoutes[prefix]
 			targetURL, err := url.Parse(target)
 			if err != nil {
 				p.logger.Error("invalid target URL", zap.String("target", target), zap.Error(err))

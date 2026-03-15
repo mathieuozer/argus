@@ -1,4 +1,4 @@
-# Argus Sidecar Proxy
+# Argus Telemetry Service
 # Multi-stage build: Go builder -> minimal Alpine runtime
 
 # ── Stage 1: Build ───────────────────────────────────────────────────────────
@@ -13,19 +13,19 @@ COPY go.work go.work
 
 # Copy go.mod and go.sum for dependency caching
 COPY pkg/go.mod pkg/go.sum* pkg/
-COPY sidecar/go.mod sidecar/go.sum* sidecar/
+COPY services/telemetry/go.mod services/telemetry/go.sum* services/telemetry/
 
 # Download dependencies (cached layer)
-RUN cd sidecar && go mod download
+RUN cd services/telemetry && go mod download
 
 # Copy full source
 COPY pkg/ pkg/
-COPY sidecar/ sidecar/
+COPY services/telemetry/ services/telemetry/
 
 # Build static binary
-RUN cd sidecar && \
+RUN cd services/telemetry && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags="-s -w" -o /app/sidecar ./cmd/main
+    go build -trimpath -ldflags="-s -w" -o /app/telemetry ./cmd/main
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM alpine:3.19
@@ -36,8 +36,8 @@ RUN apk add --no-cache ca-certificates tzdata
 RUN addgroup -S argus && adduser -S argus -G argus
 USER argus
 
-COPY --from=builder /app/sidecar /usr/local/bin/sidecar
+COPY --from=builder /app/telemetry /usr/local/bin/telemetry
 
-EXPOSE 8090
+EXPOSE 8083 9083
 
-ENTRYPOINT ["/usr/local/bin/sidecar"]
+ENTRYPOINT ["/usr/local/bin/telemetry"]

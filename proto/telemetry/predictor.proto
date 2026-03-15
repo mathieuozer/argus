@@ -1,0 +1,79 @@
+syntax = "proto3";
+package argus.telemetry.v1;
+option go_package = "github.com/argus-platform/argus/gen/go/telemetry/v1;telemetryv1";
+
+import "google/protobuf/timestamp.proto";
+
+// PredictiveAlert represents a pre-failure alert.
+message PredictiveAlert {
+  string id = 1;
+  string tenant_id = 2;
+  string agent_id = 3;
+  double failure_probability = 4;
+  int32 estimated_ttf_seconds = 5;
+  string precursor_type = 6;
+  repeated string evidence = 7;
+  AlertStatus status = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+enum AlertStatus {
+  ALERT_STATUS_UNSPECIFIED = 0;
+  ALERT_STATUS_OPEN = 1;
+  ALERT_STATUS_ACKNOWLEDGED = 2;
+  ALERT_STATUS_RESOLVED = 3;
+  ALERT_STATUS_FALSE_POSITIVE = 4;
+}
+
+// Features for the predictive model.
+message PredictionFeatures {
+  double latency_p99_ratio = 1;
+  double token_velocity = 2;
+  double retry_rate = 3;
+  double error_rate_delta = 4;
+  double context_fill_pct = 5;
+  double tool_call_depth = 6;
+  double consecutive_slow = 7;
+  double cost_acceleration = 8;
+}
+
+message PredictRequest {
+  string tenant_id = 1;
+  string agent_id = 2;
+  PredictionFeatures features = 3;
+}
+
+message PredictResponse {
+  double failure_probability = 1;
+  int32 ttf_seconds = 2;
+  string precursor_type = 3;
+  bool should_alert = 4;
+}
+
+message ListAlertsRequest {
+  string tenant_id = 1;
+  optional string agent_id = 2;
+  optional AlertStatus status = 3;
+  string after = 4;
+  int32 limit = 5;
+}
+
+message ListAlertsResponse {
+  repeated PredictiveAlert alerts = 1;
+  string next_cursor = 2;
+}
+
+message AcknowledgeAlertRequest {
+  string tenant_id = 1;
+  string alert_id = 2;
+}
+
+message AcknowledgeAlertResponse {
+  PredictiveAlert alert = 1;
+}
+
+service PredictorService {
+  rpc Predict(PredictRequest) returns (PredictResponse);
+  rpc ListAlerts(ListAlertsRequest) returns (ListAlertsResponse);
+  rpc AcknowledgeAlert(AcknowledgeAlertRequest) returns (AcknowledgeAlertResponse);
+}
