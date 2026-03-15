@@ -89,7 +89,9 @@ func main() {
 					if tier >= classifier.TierSensitive {
 						classified[tier] = scrubber.ScrubMap(attrs)
 					}
-					storageBackend.Store(tenantID, tier, attrs)
+					if err := storageBackend.Store(tenantID, tier, attrs); err != nil {
+						log.Error("failed to store telemetry", zap.String("tenant", tenantID), zap.Error(err))
+					}
 				}
 			}
 
