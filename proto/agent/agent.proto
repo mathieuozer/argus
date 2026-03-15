@@ -1,0 +1,77 @@
+syntax = "proto3";
+package argus.agent.v1;
+option go_package = "github.com/argus-platform/argus/gen/go/agent/v1;agentv1";
+
+import "google/protobuf/timestamp.proto";
+
+enum AgentStatus {
+  AGENT_STATUS_UNSPECIFIED = 0;
+  AGENT_STATUS_DISCOVERED = 1;
+  AGENT_STATUS_HEALTHY = 2;
+  AGENT_STATUS_DEGRADED = 3;
+  AGENT_STATUS_FAILED = 4;
+  AGENT_STATUS_QUARANTINED = 5;
+}
+
+message Agent {
+  string id = 1;
+  string tenant_id = 2;
+  string version = 3;
+  string framework = 4;
+  repeated string capabilities = 5;
+  AgentStatus status = 6;
+  string svid_uri = 7;
+  google.protobuf.Timestamp last_seen = 8;
+  string node_id = 9;
+}
+
+message RegisterAgentRequest {
+  string tenant_id = 1;
+  string agent_id = 2;
+  string version = 3;
+  string framework = 4;
+  repeated string capabilities = 5;
+  string node_id = 6;
+}
+
+message RegisterAgentResponse {
+  Agent agent = 1;
+  string svid_uri = 2;
+}
+
+message HeartbeatRequest {
+  string tenant_id = 1;
+  string agent_id = 2;
+  AgentStatus status = 3;
+}
+
+message HeartbeatResponse {
+  bool acknowledged = 1;
+}
+
+message ListAgentsRequest {
+  string tenant_id = 1;
+  string after = 2;
+  int32 limit = 3;
+}
+
+message ListAgentsResponse {
+  repeated Agent agents = 1;
+  string next_cursor = 2;
+}
+
+message GetAgentRequest {
+  string tenant_id = 1;
+  string agent_id = 2;
+}
+
+message GetAgentResponse {
+  Agent agent = 1;
+}
+
+service AgentService {
+  rpc RegisterAgent(RegisterAgentRequest) returns (RegisterAgentResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  rpc ListAgents(ListAgentsRequest) returns (ListAgentsResponse);
+  rpc GetAgent(GetAgentRequest) returns (GetAgentResponse);
+}

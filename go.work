@@ -1,0 +1,12 @@
+go 1.22.0
+
+use (
+	./pkg
+	./services/gateway
+	./services/identity
+	./services/orchestrator
+	./services/telemetry
+	./services/control-plane
+	./sidecar
+	./sdk/go
+)

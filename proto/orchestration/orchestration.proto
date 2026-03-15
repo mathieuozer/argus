@@ -1,0 +1,80 @@
+syntax = "proto3";
+package argus.orchestration.v1;
+option go_package = "github.com/argus-platform/argus/gen/go/orchestration/v1;orchestrationv1";
+
+import "google/protobuf/timestamp.proto";
+
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_PENDING = 1;
+  TASK_STATUS_RUNNING = 2;
+  TASK_STATUS_COMPLETED = 3;
+  TASK_STATUS_FAILED = 4;
+  TASK_STATUS_AWAITING_APPROVAL = 5;
+}
+
+message Task {
+  string id = 1;
+  string tenant_id = 2;
+  string agent_id = 3;
+  TaskStatus status = 4;
+  string input_hash = 5;
+  google.protobuf.Timestamp started_at = 6;
+  optional google.protobuf.Timestamp completed_at = 7;
+  double cost_usd = 8;
+  int64 tokens_used = 9;
+  optional string approval_id = 10;
+  repeated string required_capabilities = 11;
+}
+
+message SubmitTaskRequest {
+  string tenant_id = 1;
+  string input_hash = 2;
+  repeated string required_capabilities = 3;
+  optional string preferred_agent_id = 4;
+}
+
+message SubmitTaskResponse {
+  Task task = 1;
+}
+
+message GetTaskRequest {
+  string tenant_id = 1;
+  string task_id = 2;
+}
+
+message GetTaskResponse {
+  Task task = 1;
+}
+
+message UpdateTaskStatusRequest {
+  string tenant_id = 1;
+  string task_id = 2;
+  TaskStatus status = 3;
+  optional double cost_usd = 4;
+  optional int64 tokens_used = 5;
+}
+
+message UpdateTaskStatusResponse {
+  Task task = 1;
+}
+
+message ListTasksRequest {
+  string tenant_id = 1;
+  optional string agent_id = 2;
+  optional TaskStatus status = 3;
+  string after = 4;
+  int32 limit = 5;
+}
+
+message ListTasksResponse {
+  repeated Task tasks = 1;
+  string next_cursor = 2;
+}
+
+service OrchestrationService {
+  rpc SubmitTask(SubmitTaskRequest) returns (SubmitTaskResponse);
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
+  rpc UpdateTaskStatus(UpdateTaskStatusRequest) returns (UpdateTaskStatusResponse);
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+}

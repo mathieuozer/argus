@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  namespace: argus
+  labels:
+    app: orchestrator
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orchestrator
+  template:
+    metadata:
+      labels:
+        app: orchestrator
+    spec:
+      containers:
+        - name: orchestrator
+          image: argus/orchestrator:latest
+          ports:
+            - containerPort: 8082
+            - containerPort: 9082
+          envFrom:
+            - configMapRef:
+                name: argus-config
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  namespace: argus
+spec:
+  selector:
+    app: orchestrator
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082
+    - name: grpc
+      port: 9082
+      targetPort: 9082

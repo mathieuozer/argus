@@ -1,0 +1,60 @@
+syntax = "proto3";
+package argus.identity.v1;
+option go_package = "github.com/argus-platform/argus/gen/go/identity/v1;identityv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+message SVID {
+  string spiffe_id = 1;
+  bytes certificate = 2;
+  bytes private_key = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message CreateSVIDRequest {
+  string tenant_id = 1;
+  string agent_id = 2;
+  string version = 3;
+  bytes csr = 4;
+}
+
+message CreateSVIDResponse {
+  SVID svid = 1;
+}
+
+message RenewSVIDRequest {
+  string spiffe_id = 1;
+  bytes csr = 2;
+}
+
+message RenewSVIDResponse {
+  SVID svid = 1;
+}
+
+message RevokeSVIDRequest {
+  string spiffe_id = 1;
+  string reason = 2;
+}
+
+message RevokeSVIDResponse {
+  bool revoked = 1;
+}
+
+message ValidateSVIDRequest {
+  bytes certificate = 1;
+}
+
+message ValidateSVIDResponse {
+  bool valid = 1;
+  string spiffe_id = 2;
+  string tenant_id = 3;
+  string agent_id = 4;
+}
+
+service IdentityService {
+  rpc CreateSVID(CreateSVIDRequest) returns (CreateSVIDResponse);
+  rpc RenewSVID(RenewSVIDRequest) returns (RenewSVIDResponse);
+  rpc RevokeSVID(RevokeSVIDRequest) returns (RevokeSVIDResponse);
+  rpc ValidateSVID(ValidateSVIDRequest) returns (ValidateSVIDResponse);
+}

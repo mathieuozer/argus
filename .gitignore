@@ -1,0 +1,71 @@
+# Go
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Go workspace
+go.work.sum
+
+# Node.js / Dashboard
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Python SDK
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+*.whl
+venv/
+.venv/
+
+# Protobuf generated
+*_grpc.pb.go
+*.pb.go
+
+# Docker
+.docker/
+
+# Vault
+vault-data/
+
+# ONNX
+*.onnx
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Coverage
+coverage/
+coverage.out
+coverage.html
+
+# Build artifacts
+build/
+tmp/
+
+# Air-gap bundles
+*.tar.gz
+*.zip

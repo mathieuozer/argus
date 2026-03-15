@@ -1,0 +1,16 @@
+FROM golang:1.22-alpine AS builder
+WORKDIR /app
+
+COPY go.work go.work
+COPY pkg/ pkg/
+COPY sidecar/ sidecar/
+
+RUN cd sidecar && go mod download
+RUN cd sidecar && CGO_ENABLED=0 GOOS=linux go build -o /app/sidecar ./cmd/main
+
+FROM alpine:3.19
+RUN apk add --no-cache ca-certificates
+COPY --from=builder /app/sidecar /usr/local/bin/sidecar
+
+EXPOSE 8085
+ENTRYPOINT ["/usr/local/bin/sidecar"]

@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Deployment
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+configMapGenerator:
+  - name: argus-config
+    namespace: argus
+    literals:
+      - ARGUS_ENV=development
+      - ARGUS_LOG_LEVEL=debug
+      - ARGUS_LOG_FORMAT=text
+      - ARGUS_TENANT_ENFORCEMENT=strict
+      - ARGUS_DB_DSN=postgres://argus:argus@postgres:5432/argus?sslmode=disable
+      - ARGUS_NATS_URL=nats://nats:4222

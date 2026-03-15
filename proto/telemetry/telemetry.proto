@@ -1,0 +1,88 @@
+syntax = "proto3";
+package argus.telemetry.v1;
+option go_package = "github.com/argus-platform/argus/gen/go/telemetry/v1;telemetryv1";
+
+import "google/protobuf/timestamp.proto";
+
+enum DataTier {
+  DATA_TIER_UNSPECIFIED = 0;
+  DATA_TIER_STRUCTURAL = 1;
+  DATA_TIER_SENSITIVE = 2;
+  DATA_TIER_RESTRICTED = 3;
+}
+
+message Span {
+  string span_id = 1;
+  string trace_id = 2;
+  string tenant_id = 3;
+  string agent_id = 4;
+  string task_id = 5;
+  string operation_name = 6;
+  google.protobuf.Timestamp started_at = 7;
+  int64 duration_ms = 8;
+  DataTier tier = 9;
+  map<string, string> attributes = 10;
+  optional string error_code = 11;
+}
+
+message Metric {
+  string tenant_id = 1;
+  string agent_id = 2;
+  string name = 3;
+  double value = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  map<string, string> labels = 6;
+}
+
+message Event {
+  string tenant_id = 1;
+  string agent_id = 2;
+  string event_type = 3;
+  string payload = 4;
+  DataTier tier = 5;
+  google.protobuf.Timestamp timestamp = 6;
+}
+
+message IngestSpansRequest {
+  repeated Span spans = 1;
+}
+
+message IngestSpansResponse {
+  int32 accepted = 1;
+}
+
+message IngestMetricsRequest {
+  repeated Metric metrics = 1;
+}
+
+message IngestMetricsResponse {
+  int32 accepted = 1;
+}
+
+message IngestEventsRequest {
+  repeated Event events = 1;
+}
+
+message IngestEventsResponse {
+  int32 accepted = 1;
+}
+
+message QuerySpansRequest {
+  string tenant_id = 1;
+  string agent_id = 2;
+  string trace_id = 3;
+  google.protobuf.Timestamp start_time = 4;
+  google.protobuf.Timestamp end_time = 5;
+  int32 limit = 6;
+}
+
+message QuerySpansResponse {
+  repeated Span spans = 1;
+}
+
+service TelemetryService {
+  rpc IngestSpans(IngestSpansRequest) returns (IngestSpansResponse);
+  rpc IngestMetrics(IngestMetricsRequest) returns (IngestMetricsResponse);
+  rpc IngestEvents(IngestEventsRequest) returns (IngestEventsResponse);
+  rpc QuerySpans(QuerySpansRequest) returns (QuerySpansResponse);
+}
