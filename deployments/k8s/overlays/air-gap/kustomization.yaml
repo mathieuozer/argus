@@ -1,0 +1,92 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Use local registry for all images (pre-loaded, no external pulls)
+images:
+  - name: argus/control-plane
+    newName: local-registry:5000/argus/control-plane
+    newTag: v1.0.0
+  - name: argus/orchestrator
+    newName: local-registry:5000/argus/orchestrator
+    newTag: v1.0.0
+  - name: argus/telemetry
+    newName: local-registry:5000/argus/telemetry
+    newTag: v1.0.0
+  - name: argus/identity
+    newName: local-registry:5000/argus/identity
+    newTag: v1.0.0
+  - name: argus/gateway
+    newName: local-registry:5000/argus/gateway
+    newTag: v1.0.0
+  - name: argus/sidecar
+    newName: local-registry:5000/argus/sidecar
+    newTag: v1.0.0
+
+patches:
+  # Set imagePullPolicy to Never for all Deployments (images pre-loaded on nodes)
+  - target:
+      kind: Deployment
+      name: control-plane
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: orchestrator
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: telemetry
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: identity
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: gateway
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  # Set imagePullPolicy to Never for DaemonSet (sidecar)
+  - target:
+      kind: DaemonSet
+      name: sidecar
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  # Change gateway to NodePort (no cloud LB in air-gap)
+  - target:
+      kind: Service
+      name: gateway
+    patch: |
+      - op: replace
+        path: /spec/type
+        value: NodePort
+
+configMapGenerator:
+  - name: argus-config
+    namespace: argus
+    behavior: replace
+    literals:
+      - ARGUS_ENV=production
+      - ARGUS_LOG_LEVEL=info
+      - ARGUS_LOG_FORMAT=json
+      - ARGUS_TENANT_ENFORCEMENT=strict
+      - ARGUS_NATS_STREAM=ARGUS_TELEMETRY
+      - ARGUS_AIR_GAP=true

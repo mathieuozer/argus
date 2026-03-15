@@ -1,0 +1,345 @@
+## Network policies restricting inter-service communication within the argus namespace.
+## Only explicitly allowed traffic is permitted between services.
+
+# Gateway: ingress from external, egress to control-plane, orchestrator, identity
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway-network-policy
+  namespace: argus
+  labels:
+    app.kubernetes.io/part-of: argus
+spec:
+  podSelector:
+    matchLabels:
+      app: gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow external traffic (LoadBalancer)
+    - ports:
+        - port: 8080
+          protocol: TCP
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: control-plane
+      ports:
+        - port: 8084
+          protocol: TCP
+        - port: 9084
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app: orchestrator
+      ports:
+        - port: 8082
+          protocol: TCP
+        - port: 9082
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app: identity
+      ports:
+        - port: 8081
+          protocol: TCP
+        - port: 9081
+          protocol: TCP
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+
+# Control-plane: ingress from gateway, egress to orchestrator, telemetry, identity, DB, NATS
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: control-plane-network-policy
+  namespace: argus
+  labels:
+    app.kubernetes.io/part-of: argus
+spec:
+  podSelector:
+    matchLabels:
+      app: control-plane
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: gateway
+      ports:
+        - port: 8084
+          protocol: TCP
+        - port: 9084
+          protocol: TCP
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: orchestrator
+      ports:
+        - port: 9082
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app: telemetry
+      ports:
+        - port: 9083
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app: identity
+      ports:
+        - port: 9081
+          protocol: TCP
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Allow PostgreSQL and NATS (external to namespace)
+    - to: []
+      ports:
+        - port: 5432
+          protocol: TCP
+        - port: 4222
+          protocol: TCP
+
+# Orchestrator: ingress from control-plane and gateway, egress to telemetry, identity, DB, NATS
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: orchestrator-network-policy
+  namespace: argus
+  labels:
+    app.kubernetes.io/part-of: argus
+spec:
+  podSelector:
+    matchLabels:
+      app: orchestrator
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: control-plane
+        - podSelector:
+            matchLabels:
+              app: gateway
+      ports:
+        - port: 8082
+          protocol: TCP
+        - port: 9082
+          protocol: TCP
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: telemetry
+      ports:
+        - port: 9083
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app: identity
+      ports:
+        - port: 9081
+          protocol: TCP
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Allow PostgreSQL and NATS (external to namespace)
+    - to: []
+      ports:
+        - port: 5432
+          protocol: TCP
+        - port: 4222
+          protocol: TCP
+
+# Telemetry: ingress from control-plane, orchestrator, sidecar; egress to DB, NATS
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: telemetry-network-policy
+  namespace: argus
+  labels:
+    app.kubernetes.io/part-of: argus
+spec:
+  podSelector:
+    matchLabels:
+      app: telemetry
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: control-plane
+        - podSelector:
+            matchLabels:
+              app: orchestrator
+        - podSelector:
+            matchLabels:
+              app: sidecar
+      ports:
+        - port: 8083
+          protocol: TCP
+        - port: 9083
+          protocol: TCP
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Allow PostgreSQL and NATS (external to namespace)
+    - to: []
+      ports:
+        - port: 5432
+          protocol: TCP
+        - port: 4222
+          protocol: TCP
+
+# Identity: ingress from gateway, control-plane, orchestrator, sidecar; egress to Vault
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: identity-network-policy
+  namespace: argus
+  labels:
+    app.kubernetes.io/part-of: argus
+spec:
+  podSelector:
+    matchLabels:
+      app: identity
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: gateway
+        - podSelector:
+            matchLabels:
+              app: control-plane
+        - podSelector:
+            matchLabels:
+              app: orchestrator
+        - podSelector:
+            matchLabels:
+              app: sidecar
+      ports:
+        - port: 8081
+          protocol: TCP
+        - port: 9081
+          protocol: TCP
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Allow Vault (typically port 8200)
+    - to: []
+      ports:
+        - port: 8200
+          protocol: TCP
+    # Allow PostgreSQL
+    - to: []
+      ports:
+        - port: 5432
+          protocol: TCP
+
+# Sidecar: ingress from agents on the node, egress to telemetry, identity, orchestrator, NATS
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sidecar-network-policy
+  namespace: argus
+  labels:
+    app.kubernetes.io/part-of: argus
+spec:
+  podSelector:
+    matchLabels:
+      app: sidecar
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from any pod on the node (agents being monitored)
+    - ports:
+        - port: 8090
+          protocol: TCP
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: telemetry
+      ports:
+        - port: 8083
+          protocol: TCP
+        - port: 9083
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app: identity
+      ports:
+        - port: 8081
+          protocol: TCP
+        - port: 9081
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app: orchestrator
+      ports:
+        - port: 8082
+          protocol: TCP
+        - port: 9082
+          protocol: TCP
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Allow NATS
+    - to: []
+      ports:
+        - port: 4222
+          protocol: TCP

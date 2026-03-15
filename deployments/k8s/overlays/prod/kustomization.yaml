@@ -1,0 +1,68 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - hpa-telemetry.yaml
+  - network-policy.yaml
+
+images:
+  - name: argus/control-plane
+    newTag: v1.0.0
+  - name: argus/orchestrator
+    newTag: v1.0.0
+  - name: argus/telemetry
+    newTag: v1.0.0
+  - name: argus/identity
+    newTag: v1.0.0
+  - name: argus/gateway
+    newTag: v1.0.0
+  - name: argus/sidecar
+    newTag: v1.0.0
+
+patches:
+  # Increase telemetry resources for production load
+  - target:
+      kind: Deployment
+      name: telemetry
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "1Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "1000m"
+  # Increase gateway resources for production load
+  - target:
+      kind: Deployment
+      name: gateway
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "250m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+
+configMapGenerator:
+  - name: argus-config
+    namespace: argus
+    behavior: replace
+    literals:
+      - ARGUS_ENV=production
+      - ARGUS_LOG_LEVEL=info
+      - ARGUS_LOG_FORMAT=json
+      - ARGUS_TENANT_ENFORCEMENT=strict
+      - ARGUS_NATS_STREAM=ARGUS_TELEMETRY

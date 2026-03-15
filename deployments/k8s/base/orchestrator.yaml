@@ -5,6 +5,8 @@ metadata:
   namespace: argus
   labels:
     app: orchestrator
+    app.kubernetes.io/part-of: argus
+    app.kubernetes.io/component: orchestrator
 spec:
   replicas: 2
   selector:
@@ -14,35 +16,60 @@ spec:
     metadata:
       labels:
         app: orchestrator
+        app.kubernetes.io/part-of: argus
+        app.kubernetes.io/component: orchestrator
     spec:
+      serviceAccountName: argus-orchestrator
       containers:
         - name: orchestrator
           image: argus/orchestrator:latest
           ports:
-            - containerPort: 8082
-            - containerPort: 9082
+            - name: http
+              containerPort: 8082
+              protocol: TCP
+            - name: grpc
+              containerPort: 9082
+              protocol: TCP
           envFrom:
             - configMapRef:
                 name: argus-config
+            - secretRef:
+                name: argus-secrets
+          env:
+            - name: ARGUS_NATS_URL
+              value: "nats://nats:4222"
           livenessProbe:
             httpGet:
               path: /health
               port: 8082
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8082
             initialDelaySeconds: 5
-            periodSeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
           resources:
             requests:
-              memory: "64Mi"
+              memory: "128Mi"
               cpu: "100m"
             limits:
               memory: "256Mi"
-              cpu: "500m"
+              cpu: "250m"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: orchestrator
   namespace: argus
+  labels:
+    app: orchestrator
+    app.kubernetes.io/part-of: argus
 spec:
   selector:
     app: orchestrator
@@ -50,6 +77,17 @@ spec:
     - name: http
       port: 8082
       targetPort: 8082
+      protocol: TCP
     - name: grpc
       port: 9082
       targetPort: 9082
+      protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argus-orchestrator
+  namespace: argus
+  labels:
+    app: orchestrator
+    app.kubernetes.io/part-of: argus

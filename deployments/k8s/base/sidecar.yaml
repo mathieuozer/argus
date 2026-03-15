@@ -1,51 +1,56 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
-  name: identity
+  name: sidecar
   namespace: argus
   labels:
-    app: identity
+    app: sidecar
     app.kubernetes.io/part-of: argus
-    app.kubernetes.io/component: identity
+    app.kubernetes.io/component: sidecar
 spec:
-  replicas: 2
   selector:
     matchLabels:
-      app: identity
+      app: sidecar
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
   template:
     metadata:
       labels:
-        app: identity
+        app: sidecar
         app.kubernetes.io/part-of: argus
-        app.kubernetes.io/component: identity
+        app.kubernetes.io/component: sidecar
     spec:
-      serviceAccountName: argus-identity
+      serviceAccountName: argus-sidecar
+      hostNetwork: false
       containers:
-        - name: identity
-          image: argus/identity:latest
+        - name: sidecar
+          image: argus/sidecar:latest
           ports:
             - name: http
-              containerPort: 8081
-              protocol: TCP
-            - name: grpc
-              containerPort: 9081
+              containerPort: 8090
               protocol: TCP
           envFrom:
             - configMapRef:
                 name: argus-config
-            - secretRef:
-                name: argus-secrets
           env:
-            - name: ARGUS_VAULT_ADDR
-              value: "https://vault.internal:8200"
-            - name: ARGUS_CA_CERT_PATH
-              value: "/etc/argus/ca.crt"
+            - name: ARGUS_NATS_URL
+              value: "nats://nats:4222"
             - name: ARGUS_SPIRE_SOCKET
               value: "/tmp/spire-agent/public/api.sock"
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           livenessProbe:
             httpGet:
               path: /health
-              port: 8081
+              port: 8090
             initialDelaySeconds: 10
             periodSeconds: 15
             timeoutSeconds: 3
@@ -53,61 +58,54 @@ spec:
           readinessProbe:
             httpGet:
               path: /health
-              port: 8081
+              port: 8090
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 2
             failureThreshold: 3
           resources:
             requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
               memory: "128Mi"
               cpu: "100m"
-            limits:
-              memory: "256Mi"
-              cpu: "250m"
           volumeMounts:
-            - name: ca-cert
-              mountPath: /etc/argus
-              readOnly: true
             - name: spire-socket
               mountPath: /tmp/spire-agent/public
               readOnly: true
       volumes:
-        - name: ca-cert
-          secret:
-            secretName: argus-ca-cert
-            optional: true
         - name: spire-socket
           hostPath:
             path: /tmp/spire-agent/public
             type: DirectoryOrCreate
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: identity
+  name: sidecar
   namespace: argus
   labels:
-    app: identity
+    app: sidecar
     app.kubernetes.io/part-of: argus
 spec:
   selector:
-    app: identity
+    app: sidecar
   ports:
     - name: http
-      port: 8081
-      targetPort: 8081
+      port: 8090
+      targetPort: 8090
       protocol: TCP
-    - name: grpc
-      port: 9081
-      targetPort: 9081
-      protocol: TCP
+  clusterIP: None
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: argus-identity
+  name: argus-sidecar
   namespace: argus
   labels:
-    app: identity
+    app: sidecar
     app.kubernetes.io/part-of: argus

@@ -5,20 +5,66 @@ resources:
   - ../../base
 
 patches:
+  # Scale all Deployments to 1 replica for dev
   - target:
       kind: Deployment
+      name: control-plane
     patch: |
       - op: replace
         path: /spec/replicas
         value: 1
+  - target:
+      kind: Deployment
+      name: orchestrator
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: telemetry
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: identity
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: gateway
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  # Change gateway service to NodePort in dev (no cloud LB needed)
+  - target:
+      kind: Service
+      name: gateway
+    patch: |
+      - op: replace
+        path: /spec/type
+        value: NodePort
 
 configMapGenerator:
   - name: argus-config
     namespace: argus
+    behavior: replace
     literals:
       - ARGUS_ENV=development
       - ARGUS_LOG_LEVEL=debug
       - ARGUS_LOG_FORMAT=text
       - ARGUS_TENANT_ENFORCEMENT=strict
+      - ARGUS_NATS_STREAM=ARGUS_TELEMETRY
+
+secretGenerator:
+  - name: argus-secrets
+    namespace: argus
+    behavior: replace
+    literals:
       - ARGUS_DB_DSN=postgres://argus:argus@postgres:5432/argus?sslmode=disable
-      - ARGUS_NATS_URL=nats://nats:4222
+      - ARGUS_JWT_SECRET=dev-jwt-secret-not-for-production

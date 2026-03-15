@@ -5,6 +5,8 @@ metadata:
   namespace: argus
   labels:
     app: gateway
+    app.kubernetes.io/part-of: argus
+    app.kubernetes.io/component: gateway
 spec:
   replicas: 2
   selector:
@@ -14,48 +16,72 @@ spec:
     metadata:
       labels:
         app: gateway
+        app.kubernetes.io/part-of: argus
+        app.kubernetes.io/component: gateway
     spec:
+      serviceAccountName: argus-gateway
       containers:
         - name: gateway
           image: argus/gateway:latest
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: argus-config
+            - secretRef:
+                name: argus-secrets
           env:
-            - name: ARGUS_ENV
-              value: production
-            - name: ARGUS_LOG_LEVEL
-              value: info
-            - name: ARGUS_LOG_FORMAT
-              value: json
+            - name: ARGUS_NATS_URL
+              value: "nats://nats:4222"
           livenessProbe:
             httpGet:
               path: /health
               port: 8080
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
               port: 8080
-            initialDelaySeconds: 3
+            initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
           resources:
             requests:
-              memory: "64Mi"
+              memory: "128Mi"
               cpu: "100m"
             limits:
               memory: "256Mi"
-              cpu: "500m"
+              cpu: "250m"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: gateway
   namespace: argus
+  labels:
+    app: gateway
+    app.kubernetes.io/part-of: argus
 spec:
+  type: LoadBalancer
   selector:
     app: gateway
   ports:
-    - port: 8080
+    - name: http
+      port: 8080
       targetPort: 8080
-  type: LoadBalancer
+      protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argus-gateway
+  namespace: argus
+  labels:
+    app: gateway
+    app.kubernetes.io/part-of: argus

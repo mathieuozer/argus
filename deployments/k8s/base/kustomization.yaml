@@ -1,10 +1,18 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+namespace: argus
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+
 resources:
   - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
   - gateway.yaml
   - identity.yaml
   - orchestrator.yaml
   - telemetry.yaml
   - control-plane.yaml
+  - sidecar.yaml
