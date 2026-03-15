@@ -8,8 +8,8 @@ RUN apk add --no-cache git ca-certificates
 
 WORKDIR /app
 
-# Copy Go workspace file
-COPY go.work go.work
+# Disable go.work — use replace directives in go.mod
+ENV GOWORK=off
 
 # Copy go.mod and go.sum for dependency caching
 COPY pkg/go.mod pkg/go.sum* pkg/

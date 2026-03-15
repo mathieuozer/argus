@@ -1,11 +1,13 @@
 # Build stage
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 ARG SERVICE_NAME
 WORKDIR /app
 
-# Copy go workspace and shared packages
-COPY go.work go.work
+# Disable go.work — use replace directives in go.mod
+ENV GOWORK=off
+
+# Copy shared packages and service source
 COPY pkg/ pkg/
 COPY services/${SERVICE_NAME}/ services/${SERVICE_NAME}/
 
