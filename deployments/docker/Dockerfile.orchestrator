@@ -30,7 +30,7 @@ RUN cd services/orchestrator && \
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM alpine:3.23
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk upgrade --no-cache && apk add --no-cache ca-certificates tzdata
 
 # Non-root user for security
 RUN addgroup -S argus && adduser -S argus -G argus

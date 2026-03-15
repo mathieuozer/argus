@@ -16,9 +16,10 @@ jobs:
       - name: golangci-lint
         run: |
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+          CONFIG="$GITHUB_WORKSPACE/.golangci.yml"
           for dir in pkg services/control-plane services/orchestrator services/telemetry services/identity services/gateway sidecar sdk/go; do
             echo "=== Linting $dir ==="
-            (cd $dir && golangci-lint run ./...)
+            (cd $dir && golangci-lint run --config "$CONFIG" ./...)
           done
 
   test-go:

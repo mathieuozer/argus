@@ -20,7 +20,7 @@ RUN cd services/${SERVICE_NAME} && CGO_ENABLED=0 GOOS=linux go build -o /app/ser
 # Runtime stage
 FROM alpine:3.23
 
-RUN apk add --no-cache ca-certificates
+RUN apk upgrade --no-cache && apk add --no-cache ca-certificates
 COPY --from=builder /app/service /usr/local/bin/service
 
 EXPOSE 8080
