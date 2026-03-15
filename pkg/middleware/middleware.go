@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/argus-platform/argus/pkg/tenancy"
 	"go.uber.org/zap"
@@ -76,9 +75,4 @@ func CORS(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-// stripBearerPrefix removes "Bearer " prefix from token strings.
-func stripBearerPrefix(token string) string {
-	return strings.TrimPrefix(token, "Bearer ")
 }

@@ -131,9 +131,9 @@ func TestDefault(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Clear relevant env vars first
-			os.Unsetenv("ARGUS_ENV")
-			os.Unsetenv("ARGUS_LOG_LEVEL")
-			os.Unsetenv("ARGUS_LOG_FORMAT")
+			_ = os.Unsetenv("ARGUS_ENV")
+			_ = os.Unsetenv("ARGUS_LOG_LEVEL")
+			_ = os.Unsetenv("ARGUS_LOG_FORMAT")
 
 			for k, v := range tc.envVars {
 				t.Setenv(k, v)

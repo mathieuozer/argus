@@ -79,7 +79,7 @@ func TestTenantHTTP(t *testing.T) {
 			handler.ServeHTTP(rec, req)
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer func() { _ = res.Body.Close() }()
 
 			if res.StatusCode != tc.wantStatus {
 				t.Errorf("status = %d; want %d", res.StatusCode, tc.wantStatus)
@@ -103,7 +103,7 @@ func TestTenantHTTPErrorResponseFormat(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	res := rec.Result()
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	body, _ := io.ReadAll(res.Body)
 	bodyStr := string(body)
@@ -185,7 +185,7 @@ func TestRequestLogger(t *testing.T) {
 			}
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer func() { _ = res.Body.Close() }()
 
 			if res.StatusCode != tc.wantStatus {
 				t.Errorf("status = %d; want %d", res.StatusCode, tc.wantStatus)
@@ -254,7 +254,7 @@ func TestCORS(t *testing.T) {
 			handler.ServeHTTP(rec, req)
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer func() { _ = res.Body.Close() }()
 
 			if res.StatusCode != tc.wantStatus {
 				t.Errorf("status = %d; want %d", res.StatusCode, tc.wantStatus)
@@ -381,7 +381,7 @@ func TestMiddlewareChaining(t *testing.T) {
 			handler.ServeHTTP(rec, req)
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer func() { _ = res.Body.Close() }()
 
 			if res.StatusCode != tc.wantStatus {
 				t.Errorf("status = %d; want %d", res.StatusCode, tc.wantStatus)

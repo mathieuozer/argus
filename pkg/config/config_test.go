@@ -20,7 +20,7 @@ func clearArgusEnvVars(t *testing.T) {
 	}
 	for _, key := range envVars {
 		t.Setenv(key, "")
-		os.Unsetenv(key)
+		_ = os.Unsetenv(key)
 	}
 }
 
@@ -60,7 +60,7 @@ func TestGetEnv(t *testing.T) {
 			if tc.envVal != "" {
 				t.Setenv(tc.key, tc.envVal)
 			} else {
-				os.Unsetenv(tc.key)
+				_ = os.Unsetenv(tc.key)
 			}
 
 			got := getEnv(tc.key, tc.fallback)
