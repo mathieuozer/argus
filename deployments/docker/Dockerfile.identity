@@ -28,7 +28,7 @@ RUN cd services/identity && \
     go build -trimpath -ldflags="-s -w" -o /app/identity ./cmd/main
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
-FROM alpine:3.19
+FROM alpine:3.23
 
 RUN apk add --no-cache ca-certificates tzdata
 
