@@ -1,0 +1,19 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+linters-settings:
+  errcheck:
+    exclude-functions:
+      # Common Go idioms where error handling adds noise
+      - (*go.uber.org/zap.Logger).Sync
+      - (net/http.ResponseWriter).Write
+      - (*encoding/json.Encoder).Encode
+      - (io.Closer).Close
