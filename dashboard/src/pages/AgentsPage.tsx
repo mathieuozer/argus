@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useAgentStore } from '../stores/agentStore';
+import AgentCard from '../components/agents/AgentCard';
 
 function AgentsPage() {
   const { agents, loading, error, fetchAgents } = useAgentStore();
@@ -10,66 +11,61 @@ function AgentsPage() {
 
   return (
     <div>
-      <h2 style={{ marginBottom: '16px' }}>Agents</h2>
-      {loading && <p style={{ color: 'var(--color-text-muted)' }}>Loading agents...</p>}
-      {error && <p style={{ color: 'var(--color-danger)' }}>Error: {error}</p>}
+      <div className="page-header">
+        <div className="page-header-left">
+          <h2>Agents</h2>
+          <p>Monitor and manage discovered AI agents</p>
+        </div>
+        <div className="page-header-actions">
+          <button className="btn" onClick={fetchAgents} disabled={loading}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="error-banner">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+            <line x1="9" y1="9" x2="15" y2="15" />
+          </svg>
+          {error}
+        </div>
+      )}
+
+      {loading && agents.length === 0 && (
+        <div className="loading-container">
+          <div className="loading-spinner" />
+          <span>Loading agents...</span>
+        </div>
+      )}
+
       {!loading && !error && agents.length === 0 && (
-        <div
-          style={{
-            padding: '40px',
-            textAlign: 'center',
-            color: 'var(--color-text-muted)',
-            backgroundColor: 'var(--color-surface)',
-            borderRadius: '8px',
-            border: '1px solid var(--color-border)',
-          }}
-        >
-          <p>No agents discovered yet.</p>
-          <p style={{ fontSize: '14px', marginTop: '8px' }}>
-            Deploy a sidecar alongside your agent to get started.
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <h3>No agents discovered yet</h3>
+          <p>
+            Deploy a sidecar alongside your agent to automatically discover and register it with Argus.
           </p>
         </div>
       )}
+
       {agents.length > 0 && (
-        <div style={{ display: 'grid', gap: '12px' }}>
+        <div className="grid grid-auto">
           {agents.map((agent) => (
-            <div
-              key={agent.id}
-              style={{
-                padding: '16px',
-                backgroundColor: 'var(--color-surface)',
-                borderRadius: '8px',
-                border: '1px solid var(--color-border)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <strong>{agent.id}</strong>
-                <span
-                  style={{
-                    fontSize: '12px',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    backgroundColor:
-                      agent.status === 'healthy'
-                        ? 'rgba(34, 197, 94, 0.2)'
-                        : agent.status === 'degraded'
-                          ? 'rgba(245, 158, 11, 0.2)'
-                          : 'rgba(239, 68, 68, 0.2)',
-                    color:
-                      agent.status === 'healthy'
-                        ? 'var(--color-success)'
-                        : agent.status === 'degraded'
-                          ? 'var(--color-warning)'
-                          : 'var(--color-danger)',
-                  }}
-                >
-                  {agent.status}
-                </span>
-              </div>
-              <div style={{ fontSize: '14px', color: 'var(--color-text-muted)' }}>
-                {agent.framework} v{agent.version} | Node: {agent.node_id}
-              </div>
-            </div>
+            <AgentCard key={agent.id} agent={agent} />
           ))}
         </div>
       )}
