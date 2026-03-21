@@ -17,10 +17,16 @@ type Alert struct {
 	CreatedAt     time.Time     `json:"created_at"`
 }
 
+// QuarantineCallback is called when a prediction exceeds the auto-quarantine
+// threshold (probability > 0.9). The callback receives the agentID and tenantID
+// of the agent that should be quarantined.
+type QuarantineCallback func(agentID, tenantID string)
+
 // Client calls the ONNX predictor service or uses built-in heuristics.
 type Client struct {
-	endpoint string
-	useLocal bool // when true, use local heuristic model instead of ONNX
+	endpoint           string
+	useLocal           bool // when true, use local heuristic model instead of ONNX
+	quarantineCallback QuarantineCallback
 }
 
 // NewClient creates a new predictor client.
@@ -196,6 +202,29 @@ func estimateCostTTF(acceleration float64) int {
 // sigmoid returns the sigmoid function value.
 func sigmoid(x float64) float64 {
 	return 1.0 / (1.0 + math.Exp(-x))
+}
+
+// SetQuarantineCallback registers a callback that is invoked when a prediction
+// result has a failure probability greater than 0.9. This enables the
+// auto-quarantine pipeline: the predictor detects imminent failure and triggers
+// agent quarantine via the orchestrator registry and identity revocation.
+func (c *Client) SetQuarantineCallback(cb QuarantineCallback) {
+	c.quarantineCallback = cb
+}
+
+// PredictAndEvaluate calls Predict and, if the failure probability exceeds 0.9,
+// invokes the quarantine callback (if set) for the specified agent.
+func (c *Client) PredictAndEvaluate(tenantID, agentID string, features *Features) (*Prediction, error) {
+	pred, err := c.Predict(features)
+	if err != nil {
+		return nil, err
+	}
+
+	if pred.FailureProbability > 0.9 && c.quarantineCallback != nil {
+		c.quarantineCallback(agentID, tenantID)
+	}
+
+	return pred, nil
 }
 
 // AnalyzeFeatures is a convenience function that analyzes features and returns

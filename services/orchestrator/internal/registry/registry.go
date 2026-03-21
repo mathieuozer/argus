@@ -128,6 +128,29 @@ func (r *Registry) Heartbeat(tenantID, agentID string, status AgentStatus) error
 	return nil
 }
 
+// QuarantineAgent sets an agent's status to quarantined. This is used by the
+// auto-quarantine pipeline when the predictive failure model determines that
+// an agent has a very high probability of imminent failure (> 0.9). A
+// quarantined agent is excluded from task routing but can still be inspected.
+func (r *Registry) QuarantineAgent(tenantID, agentID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	tenantAgents, ok := r.agents[tenantID]
+	if !ok {
+		return errors.New(errors.CodeAgentNotFound, "agent not found")
+	}
+
+	agent, ok := tenantAgents[agentID]
+	if !ok {
+		return errors.New(errors.CodeAgentNotFound, "agent not found")
+	}
+
+	agent.Status = StatusQuarantined
+	agent.LastSeen = time.Now()
+	return nil
+}
+
 // FindByCapabilities returns agents that have all the specified capabilities.
 func (r *Registry) FindByCapabilities(tenantID string, capabilities []string) []*Agent {
 	r.mu.RLock()

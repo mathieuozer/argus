@@ -1,6 +1,7 @@
 package revocation
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -34,6 +35,15 @@ func (s *Store) Revoke(spiffeID, reason string) {
 		Reason:    reason,
 		RevokedAt: time.Now(),
 	}
+}
+
+// RevokeAgentCert constructs the SPIFFE ID for the given tenant and agent,
+// then adds it to the revocation list. This is used by the auto-quarantine
+// pipeline to revoke an agent's certificate so it can no longer initiate
+// mTLS connections, while still being inspectable via the dashboard.
+func (s *Store) RevokeAgentCert(tenantID, agentID string) {
+	spiffeID := fmt.Sprintf("spiffe://argus.local/tenant/%s/agent/%s", tenantID, agentID)
+	s.Revoke(spiffeID, "auto-quarantine: predictive failure probability exceeded threshold")
 }
 
 // IsRevoked checks if a certificate is revoked.
