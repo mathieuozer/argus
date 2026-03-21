@@ -1,6 +1,6 @@
 module github.com/argus-platform/argus/services/identity
 
-go 1.24.0
+go 1.26.1
 
 require (
 	github.com/argus-platform/argus/gen/go v0.0.0

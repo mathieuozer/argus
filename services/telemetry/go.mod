@@ -1,6 +1,6 @@
 module github.com/argus-platform/argus/services/telemetry
 
-go 1.25.0
+go 1.26.1
 
 require (
 	github.com/argus-platform/argus/gen/go v0.0.0

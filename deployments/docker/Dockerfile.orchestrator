@@ -1,8 +1,15 @@
 # Argus Orchestrator Service
-# Multi-stage build: Go builder -> minimal Alpine runtime
+# Multi-stage build: buf proto gen -> Go builder -> minimal Alpine runtime
+
+# ── Stage 0: Generate protobuf ──────────────────────────────────────────────
+FROM bufbuild/buf:latest AS proto
+
+WORKDIR /app
+COPY proto/ proto/
+RUN cd proto && buf generate
 
 # ── Stage 1: Build ───────────────────────────────────────────────────────────
-FROM golang:1.24-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates
 
@@ -13,6 +20,7 @@ ENV GOWORK=off
 
 # Copy go.mod and go.sum for dependency caching
 COPY pkg/go.mod pkg/go.sum* pkg/
+COPY gen/go/go.mod gen/go/go.sum* gen/go/
 COPY services/orchestrator/go.mod services/orchestrator/go.sum* services/orchestrator/
 
 # Download dependencies (cached layer)
@@ -21,6 +29,9 @@ RUN cd services/orchestrator && go mod download
 # Copy full source
 COPY pkg/ pkg/
 COPY services/orchestrator/ services/orchestrator/
+
+# Copy generated protobuf stubs
+COPY --from=proto /app/gen/go/ gen/go/
 
 # Build static binary
 RUN cd services/orchestrator && \
