@@ -84,7 +84,7 @@ func TestListReports_TenantIsolation(t *testing.T) {
 	handler.ListReports(w, req)
 
 	var resp map[string]any
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	data := resp["data"].([]any)
 	if len(data) != 0 {
 		t.Errorf("expected 0 reports for tenant-b, got %d", len(data))
@@ -106,7 +106,7 @@ func TestListReports_ReturnsTenantReports(t *testing.T) {
 	handler.ListReports(w, req)
 
 	var resp map[string]any
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	data := resp["data"].([]any)
 	if len(data) != 2 {
 		t.Errorf("expected 2 reports for tenant-a, got %d", len(data))

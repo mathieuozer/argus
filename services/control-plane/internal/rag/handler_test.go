@@ -31,7 +31,7 @@ func TestListRetrievals(t *testing.T) {
 	}
 
 	var resp map[string]any
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	data := resp["data"].([]any)
 	if len(data) != 1 {
 		t.Errorf("expected 1 retrieval, got %d", len(data))
@@ -53,7 +53,7 @@ func TestCrossTenantIsolation(t *testing.T) {
 	handler.ListRetrievals(w, req)
 
 	var resp map[string]any
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	data := resp["data"].([]any)
 	if len(data) != 0 {
 		t.Errorf("expected 0 retrievals for tenant-b, got %d", len(data))
