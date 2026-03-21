@@ -14,12 +14,17 @@ import (
 	"syscall"
 	"time"
 
+	agentv1 "github.com/argus-platform/argus/gen/go/agent"
+	orchestrationv1 "github.com/argus-platform/argus/gen/go/orchestration"
 	"github.com/argus-platform/argus/pkg/config"
+	"github.com/argus-platform/argus/pkg/database"
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/pkg/tenancy"
 	"github.com/argus-platform/argus/services/orchestrator/internal/costtracker"
+	"github.com/argus-platform/argus/services/orchestrator/internal/grpchandler"
 	"github.com/argus-platform/argus/services/orchestrator/internal/registry"
+	"github.com/argus-platform/argus/services/orchestrator/internal/repository"
 	"github.com/argus-platform/argus/services/orchestrator/internal/router"
 	"github.com/argus-platform/argus/services/orchestrator/internal/statemachine"
 	"github.com/argus-platform/argus/services/orchestrator/internal/versioning"
@@ -43,10 +48,35 @@ func main() {
 	costs := costtracker.New()
 	versions := versioning.New()
 
+	// Initialize PostgreSQL persistence if DSN is configured
+	var agentRepo *repository.AgentRepository
+	var taskRepo *repository.TaskRepository
+	if dsn := os.Getenv("ARGUS_DB_DSN"); dsn != "" {
+		ctx := context.Background()
+		pool, err := database.NewPool(ctx, dsn)
+		if err != nil {
+			log.Warn("failed to connect to database, using in-memory stores", zap.Error(err))
+		} else {
+			agentRepo = repository.NewAgentRepository(pool)
+			taskRepo = repository.NewTaskRepository(pool)
+			log.Info("PostgreSQL persistence enabled")
+			defer pool.Close()
+		}
+	} else {
+		log.Info("no ARGUS_DB_DSN set, using in-memory stores")
+	}
+
 	// gRPC server
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(middleware.TenantUnaryInterceptor()),
 	)
+
+	// Register gRPC service handlers
+	agentGRPC := grpchandler.NewAgentHandler(agentRegistry)
+	agentv1.RegisterAgentServiceServer(grpcServer, agentGRPC)
+
+	orchGRPC := grpchandler.NewOrchestrationHandler(sm, taskRouter)
+	orchestrationv1.RegisterOrchestrationServiceServer(grpcServer, orchGRPC)
 
 	grpcLis, err := net.Listen("tcp", ":9082")
 	if err != nil {
@@ -82,6 +112,11 @@ func main() {
 			}
 			agent := agentRegistry.Register(tenantID, &req)
 			versions.Set(tenantID, req.AgentID, req.Version, false)
+			if agentRepo != nil {
+				if _, err := agentRepo.Register(r.Context(), tenantID, &req); err != nil {
+					log.Error("failed to persist agent to DB", zap.Error(err))
+				}
+			}
 			writeJSON(w, http.StatusCreated, agent, tenantID)
 		default:
 			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -111,6 +146,11 @@ func main() {
 				if err := agentRegistry.Heartbeat(tenantID, agentID, registry.AgentStatus(req.Status)); err != nil {
 					writeError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
 					return
+				}
+				if agentRepo != nil {
+					if err := agentRepo.Heartbeat(r.Context(), tenantID, agentID, registry.AgentStatus(req.Status)); err != nil {
+						log.Error("failed to persist heartbeat to DB", zap.Error(err))
+					}
 				}
 				writeJSON(w, http.StatusOK, map[string]bool{"acknowledged": true}, tenantID)
 				return
@@ -166,6 +206,11 @@ func main() {
 
 			taskID := fmt.Sprintf("task-%d", time.Now().UnixNano())
 			task := sm.CreateTask(taskID, tenantID, agent.ID, inputHash)
+			if taskRepo != nil {
+				if err := taskRepo.Create(r.Context(), task); err != nil {
+					log.Error("failed to persist task to DB", zap.Error(err))
+				}
+			}
 			writeJSON(w, http.StatusCreated, task, tenantID)
 		default:
 			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -218,9 +263,19 @@ func main() {
 				writeError(w, http.StatusBadRequest, "INVALID_TRANSITION", err.Error())
 				return
 			}
+			if taskRepo != nil {
+				if err := taskRepo.UpdateStatus(r.Context(), tenantID, taskID, statemachine.TaskStatus(req.Status)); err != nil {
+					log.Error("failed to persist task status to DB", zap.Error(err))
+				}
+			}
 
 			if req.CostUSD > 0 {
 				costs.Record(tenantID, task.AgentID, req.CostUSD)
+				if taskRepo != nil {
+					if err := taskRepo.UpdateCost(r.Context(), tenantID, taskID, req.CostUSD, req.TokensUsed); err != nil {
+						log.Error("failed to persist task cost to DB", zap.Error(err))
+					}
+				}
 			}
 
 			updated, _ := sm.Get(taskID)

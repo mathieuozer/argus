@@ -173,7 +173,7 @@ services:
       context: ../..
       dockerfile: deployments/docker/Dockerfile.sidecar
     ports:
-      - "8090:8090"
+      - "8085:8085"
     environment:
       ARGUS_ENV: development
       ARGUS_LOG_LEVEL: debug
@@ -184,6 +184,26 @@ services:
     depends_on:
       - orchestrator
       - identity
+    networks:
+      - argus-net
+
+  predictor:
+    build:
+      context: ../..
+      dockerfile: services/predictor/Dockerfile
+    ports:
+      - "8090:8090"
+    environment:
+      ARGUS_ENV: development
+      ARGUS_LOG_LEVEL: debug
+      ARGUS_PREDICTOR_PORT: "8090"
+      ARGUS_MODEL_PATH: /app/model.onnx
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - argus-net
 

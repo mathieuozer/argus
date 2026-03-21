@@ -19,10 +19,16 @@ import (
 	"github.com/argus-platform/argus/services/control-plane/internal/audit"
 	"github.com/argus-platform/argus/services/control-plane/internal/auth"
 	"github.com/argus-platform/argus/services/control-plane/internal/catalog"
+	"github.com/argus-platform/argus/services/control-plane/internal/compliance"
 	"github.com/argus-platform/argus/services/control-plane/internal/costgov"
 	"github.com/argus-platform/argus/services/control-plane/internal/dashboard"
 	"github.com/argus-platform/argus/services/control-plane/internal/dataquality"
+	"github.com/argus-platform/argus/services/control-plane/internal/eval"
+	"github.com/argus-platform/argus/services/control-plane/internal/feedback"
+	"github.com/argus-platform/argus/services/control-plane/internal/guardrails"
 	"github.com/argus-platform/argus/services/control-plane/internal/policy"
+	"github.com/argus-platform/argus/services/control-plane/internal/prompts"
+	"github.com/argus-platform/argus/services/control-plane/internal/rag"
 	"github.com/argus-platform/argus/services/control-plane/internal/slo"
 	"github.com/argus-platform/argus/services/control-plane/internal/trace"
 	"go.uber.org/zap"
@@ -66,6 +72,25 @@ func main() {
 
 	auditHandler := audit.NewHandler(auditLog)
 
+	// Initialize feature module handlers
+	evalRepo := eval.NewRepository()
+	evalHandler := eval.NewHandler(evalRepo)
+
+	feedbackRepo := feedback.NewRepository()
+	feedbackHandler := feedback.NewHandler(feedbackRepo)
+
+	guardrailsRepo := guardrails.NewRepository()
+	guardrailsHandler := guardrails.NewHandler(guardrailsRepo)
+
+	promptsRepo := prompts.NewRepository()
+	promptsHandler := prompts.NewHandler(promptsRepo)
+
+	ragRepo := rag.NewRepository()
+	ragHandler := rag.NewHandler(ragRepo)
+
+	complianceRepo := compliance.NewReportRepository()
+	complianceHandler := compliance.NewReportHandler(complianceRepo)
+
 	// gRPC server
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(middleware.TenantUnaryInterceptor()),
@@ -100,6 +125,14 @@ func main() {
 	costHandler.RegisterRoutes(mux)
 	sloHandler.RegisterRoutes(mux)
 	auditHandler.RegisterRoutes(mux)
+
+	// Feature module routes
+	evalHandler.RegisterRoutes(mux)
+	feedbackHandler.RegisterRoutes(mux)
+	guardrailsHandler.RegisterRoutes(mux)
+	promptsHandler.RegisterRoutes(mux)
+	ragHandler.RegisterRoutes(mux)
+	complianceHandler.RegisterRoutes(mux)
 
 	// Auth endpoint - generate tokens (dev mode)
 	mux.HandleFunc("/api/v1/auth/token", func(w http.ResponseWriter, r *http.Request) {

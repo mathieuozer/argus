@@ -88,10 +88,15 @@ test: ## Run all unit tests across all Go modules
 		./services/telemetry/... ./services/identity/... ./services/gateway/... \
 		./sidecar/...
 
-test-int: ## Run integration tests (requires running DB + NATS)
-	$(GOTEST) -tags=integration ./pkg/... ./services/control-plane/... \
-		./services/orchestrator/... ./services/telemetry/... ./services/identity/... \
-		./services/gateway/... ./sidecar/...
+test-int: test-infra-up ## Run integration tests (starts test DB + NATS automatically)
+	$(GOTEST) -v -count=1 github.com/argus-platform/argus/services/orchestrator/tests/integration/...
+	@$(MAKE) test-infra-down
+
+test-infra-up: ## Start test infrastructure (PostgreSQL + NATS)
+	docker compose -f deployments/docker/docker-compose.test.yml up -d --wait
+
+test-infra-down: ## Stop test infrastructure
+	docker compose -f deployments/docker/docker-compose.test.yml down -v
 
 test-e2e: ## Run end-to-end tests against local stack
 	$(GOTEST) -tags=e2e ./services/control-plane/... ./services/orchestrator/... \

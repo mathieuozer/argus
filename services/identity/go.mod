@@ -3,9 +3,11 @@ module github.com/argus-platform/argus/services/identity
 go 1.24.0
 
 require (
+	github.com/argus-platform/argus/gen/go v0.0.0
 	github.com/argus-platform/argus/pkg v0.0.0
 	go.uber.org/zap v1.27.1
 	google.golang.org/grpc v1.79.2
+	google.golang.org/protobuf v1.36.10
 )
 
 require (
@@ -14,7 +16,9 @@ require (
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/protobuf v1.36.10 // indirect
 )
 
-replace github.com/argus-platform/argus/pkg => ../../pkg
+replace (
+	github.com/argus-platform/argus/gen/go => ../../gen/go
+	github.com/argus-platform/argus/pkg => ../../pkg
+)

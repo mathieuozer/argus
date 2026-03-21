@@ -12,11 +12,13 @@ import (
 	"syscall"
 	"time"
 
+	identityv1 "github.com/argus-platform/argus/gen/go/identity"
 	"github.com/argus-platform/argus/pkg/config"
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/pkg/tenancy"
 	"github.com/argus-platform/argus/services/identity/internal/ca"
+	"github.com/argus-platform/argus/services/identity/internal/grpchandler"
 	"github.com/argus-platform/argus/services/identity/internal/revocation"
 	"github.com/argus-platform/argus/services/identity/internal/spiffe"
 	"github.com/argus-platform/argus/services/identity/internal/vault"
@@ -47,6 +49,10 @@ func main() {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(middleware.TenantUnaryInterceptor()),
 	)
+
+	// Register gRPC service handler
+	identityGRPC := grpchandler.NewIdentityHandler(authority, spiffeGen, revocationStore)
+	identityv1.RegisterIdentityServiceServer(grpcServer, identityGRPC)
 
 	grpcLis, err := net.Listen("tcp", ":9081")
 	if err != nil {

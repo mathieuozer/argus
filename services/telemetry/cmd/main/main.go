@@ -11,14 +11,22 @@ import (
 	"syscall"
 	"time"
 
+	telemetryv1 "github.com/argus-platform/argus/gen/go/telemetry"
 	"github.com/argus-platform/argus/pkg/config"
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/pkg/tenancy"
+	"github.com/argus-platform/argus/pkg/database"
+	"github.com/argus-platform/argus/services/telemetry/internal/catalog"
 	"github.com/argus-platform/argus/services/telemetry/internal/classifier"
 	"github.com/argus-platform/argus/services/telemetry/internal/collector"
+	"github.com/argus-platform/argus/services/telemetry/internal/dataquality"
+	"github.com/argus-platform/argus/services/telemetry/internal/grpchandler"
+	telguardrails "github.com/argus-platform/argus/services/telemetry/internal/guardrails"
 	"github.com/argus-platform/argus/services/telemetry/internal/pii"
+	telrepo "github.com/argus-platform/argus/services/telemetry/internal/repository"
 	"github.com/argus-platform/argus/services/telemetry/internal/predictor"
+	"github.com/argus-platform/argus/services/telemetry/internal/residency"
 	"github.com/argus-platform/argus/services/telemetry/internal/storage"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -39,10 +47,63 @@ func main() {
 	storageBackend := storage.NewInMemoryBackend()
 	predictorClient := predictor.NewClient("localhost:8090")
 
+	// Initialize PostgreSQL persistence if DSN is configured
+	var spanRepo *telrepo.SpanRepository
+	if dsn := os.Getenv("ARGUS_DB_DSN"); dsn != "" {
+		ctx := context.Background()
+		pool, err := database.NewPool(ctx, dsn)
+		if err != nil {
+			log.Warn("failed to connect to database, using in-memory stores", zap.Error(err))
+		} else {
+			spanRepo = telrepo.NewSpanRepository(pool)
+			log.Info("PostgreSQL persistence enabled for telemetry")
+			defer pool.Close()
+		}
+	} else {
+		log.Info("no ARGUS_DB_DSN set, using in-memory stores")
+	}
+
+	// Initialize telemetry pipeline modules
+	catalogDiscoverer := catalog.NewDiscoverer()
+	residencyProver := residency.NewProver(os.Getenv("ARGUS_RESIDENCY_SIGNING_KEY"))
+	dqValidator := dataquality.NewValidator()
+	dqScorer := dataquality.NewScorer(dqValidator, 5*time.Minute)
+	guardrailEngine := telguardrails.NewEngine(nil)
+
+	// Wire auto-quarantine callback
+	predictorClient.SetQuarantineCallback(func(agentID, tenantID string) {
+		log.Warn("auto-quarantine triggered",
+			zap.String("agent_id", agentID),
+			zap.String("tenant_id", tenantID),
+		)
+		// Call orchestrator to quarantine agent
+		quarantineURL := fmt.Sprintf("http://localhost:8082/api/v1/agents/%s/quarantine", agentID)
+		req, err := http.NewRequest(http.MethodPost, quarantineURL, nil)
+		if err != nil {
+			log.Error("failed to create quarantine request", zap.Error(err))
+			return
+		}
+		req.Header.Set("X-Tenant-ID", tenantID)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.Error("failed to send quarantine request", zap.Error(err))
+			return
+		}
+		resp.Body.Close()
+	})
+
 	// gRPC server
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(middleware.TenantUnaryInterceptor()),
 	)
+
+	// Register gRPC service handlers
+	telemetryGRPC := grpchandler.NewTelemetryHandler(spanCollector)
+	telemetryv1.RegisterTelemetryServiceServer(grpcServer, telemetryGRPC)
+
+	alertStore := grpchandler.NewInMemoryAlertStore()
+	predictorGRPC := grpchandler.NewPredictorHandler(predictorClient, alertStore)
+	telemetryv1.RegisterPredictorServiceServer(grpcServer, predictorGRPC)
 
 	grpcLis, err := net.Listen("tcp", ":9083")
 	if err != nil {
@@ -77,9 +138,24 @@ func main() {
 				return
 			}
 
-			// Set tenant ID, classify and scrub each span
+			// Set tenant ID, classify, scrub, discover, and check guardrails for each span
 			for _, span := range req.Spans {
 				span.TenantID = tenantID
+
+				// Auto-discover data sources from span
+				catalogDiscoverer.DiscoverFromSpan(tenantID, span.AgentID, span.OperationName, span.Attributes)
+
+				// Run guardrail checks on span content
+				if content, ok := span.Attributes["input"]; ok {
+					result := guardrailEngine.Check(tenantID, span.AgentID, span.SpanID, content)
+					if !result.Passed {
+						log.Warn("guardrail violation detected",
+							zap.String("agent_id", span.AgentID),
+							zap.String("span_id", span.SpanID),
+							zap.Int("violations", len(result.Violations)),
+						)
+					}
+				}
 
 				// Classify attributes
 				classified := classifier.ClassifyAttributes(span.Attributes)
@@ -92,10 +168,25 @@ func main() {
 					if err := storageBackend.Store(tenantID, tier, attrs); err != nil {
 						log.Error("failed to store telemetry", zap.String("tenant", tenantID), zap.Error(err))
 					}
+
+					// Create residency attestation for stored data
+					nodeID := os.Getenv("ARGUS_NODE_ID")
+					region := os.Getenv("ARGUS_REGION")
+					if nodeID != "" && region != "" {
+						residencyProver.Attest(tenantID, nodeID, region, []byte(fmt.Sprintf("%v", attrs)))
+					}
 				}
 			}
 
 			accepted := spanCollector.Ingest(req.Spans)
+
+			// Persist to PostgreSQL if available
+			if spanRepo != nil {
+				if err := spanRepo.Store(r.Context(), tenantID, req.Spans); err != nil {
+					log.Error("failed to persist spans to DB", zap.Error(err))
+				}
+			}
+
 			writeJSON(w, http.StatusOK, map[string]int{"accepted": accepted}, tenantID)
 
 		case http.MethodGet:
@@ -155,6 +246,48 @@ func main() {
 		}
 
 		writeJSON(w, http.StatusOK, prediction, tenantID)
+	})))
+
+	// Data catalog endpoint
+	mux.Handle("/api/v1/telemetry/catalog", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tenantID, _ := tenancy.FromContext(r.Context())
+		if r.Method != http.MethodGet {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		entries := catalogDiscoverer.ListSources(tenantID)
+		writeJSON(w, http.StatusOK, entries, tenantID)
+	})))
+
+	// Data residency proof endpoint
+	mux.Handle("/api/v1/telemetry/residency/proof", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tenantID, _ := tenancy.FromContext(r.Context())
+		if r.Method != http.MethodGet {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		allowedRegions := r.URL.Query()["region"]
+		if len(allowedRegions) == 0 {
+			allowedRegions = []string{os.Getenv("ARGUS_REGION")}
+		}
+		proof := residencyProver.GenerateProof(tenantID, allowedRegions)
+		writeJSON(w, http.StatusOK, proof, tenantID)
+	})))
+
+	// Data quality score endpoint
+	mux.Handle("/api/v1/telemetry/quality", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tenantID, _ := tenancy.FromContext(r.Context())
+		if r.Method != http.MethodGet {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		agentID := r.URL.Query().Get("agent_id")
+		if agentID == "" {
+			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "agent_id is required")
+			return
+		}
+		score := dqScorer.Score(agentID, nil, nil, nil)
+		writeJSON(w, http.StatusOK, score, tenantID)
 	})))
 
 	handler := middleware.CORS(middleware.RequestLogger(log)(mux))

@@ -16,3 +16,4 @@ resources:
   - telemetry.yaml
   - control-plane.yaml
   - sidecar.yaml
+  - predictor.yaml

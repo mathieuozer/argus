@@ -111,16 +111,16 @@ ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies: enforce tenant isolation
 CREATE POLICY tenant_isolation_agents ON agents
-    USING (tenant_id = current_setting('app.current_tenant')::UUID);
+    USING (tenant_id = current_setting('app.tenant_id')::UUID);
 
 CREATE POLICY tenant_isolation_tasks ON tasks
-    USING (tenant_id = current_setting('app.current_tenant')::UUID);
+    USING (tenant_id = current_setting('app.tenant_id')::UUID);
 
 CREATE POLICY tenant_isolation_spans ON telemetry_spans
-    USING (tenant_id = current_setting('app.current_tenant')::UUID);
+    USING (tenant_id = current_setting('app.tenant_id')::UUID);
 
 CREATE POLICY tenant_isolation_alerts ON predictive_alerts
-    USING (tenant_id = current_setting('app.current_tenant')::UUID);
+    USING (tenant_id = current_setting('app.tenant_id')::UUID);
 
 CREATE POLICY tenant_isolation_audit ON audit_logs
-    USING (tenant_id = current_setting('app.current_tenant')::UUID);
+    USING (tenant_id = current_setting('app.tenant_id')::UUID);

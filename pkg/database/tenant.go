@@ -16,7 +16,7 @@ func WithTenant(ctx context.Context, pool *pgxpool.Pool, tenantID string) (*pgxp
 		return nil, fmt.Errorf("acquire connection: %w", err)
 	}
 
-	_, err = conn.Exec(ctx, "SET LOCAL app.tenant_id = $1", tenantID)
+	_, err = conn.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", tenantID)
 	if err != nil {
 		conn.Release()
 		return nil, fmt.Errorf("set tenant context: %w", err)
@@ -32,7 +32,7 @@ func WithTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID string) (pgx
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 
-	_, err = tx.Exec(ctx, "SET LOCAL app.tenant_id = $1", tenantID)
+	_, err = tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", tenantID)
 	if err != nil {
 		_ = tx.Rollback(ctx)
 		return nil, fmt.Errorf("set tenant context: %w", err)

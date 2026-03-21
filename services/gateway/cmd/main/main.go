@@ -12,6 +12,7 @@ import (
 	"github.com/argus-platform/argus/pkg/config"
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
+	"github.com/argus-platform/argus/services/gateway/internal/mtls"
 	"github.com/argus-platform/argus/services/gateway/internal/proxy"
 	"github.com/argus-platform/argus/services/gateway/internal/ratelimit"
 	"go.uber.org/zap"
@@ -51,10 +52,31 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	// Configure mTLS if cert paths are provided
+	caCertPath := os.Getenv("ARGUS_CA_CERT_PATH")
+	serverCertPath := os.Getenv("ARGUS_SERVER_CERT_PATH")
+	serverKeyPath := os.Getenv("ARGUS_SERVER_KEY_PATH")
+
 	go func() {
-		log.Info("gateway starting", zap.String("addr", srv.Addr))
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("server failed", zap.Error(err))
+		if caCertPath != "" && serverCertPath != "" && serverKeyPath != "" {
+			tlsConfig, err := mtls.NewTLSConfig(&mtls.Config{
+				CACertPath:     caCertPath,
+				ServerCertPath: serverCertPath,
+				ServerKeyPath:  serverKeyPath,
+			})
+			if err != nil {
+				log.Fatal("failed to configure mTLS", zap.Error(err))
+			}
+			srv.TLSConfig = tlsConfig
+			log.Info("gateway starting with mTLS", zap.String("addr", srv.Addr))
+			if err := srv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+				log.Fatal("server failed", zap.Error(err))
+			}
+		} else {
+			log.Info("gateway starting (no TLS)", zap.String("addr", srv.Addr))
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatal("server failed", zap.Error(err))
+			}
 		}
 	}()
 

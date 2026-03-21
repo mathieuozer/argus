@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: predictor
+  namespace: argus
+  labels:
+    app: predictor
+    app.kubernetes.io/part-of: argus
+    app.kubernetes.io/component: predictor
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: predictor
+  template:
+    metadata:
+      labels:
+        app: predictor
+        app.kubernetes.io/part-of: argus
+        app.kubernetes.io/component: predictor
+    spec:
+      serviceAccountName: argus-predictor
+      containers:
+        - name: predictor
+          image: argus/predictor:latest
+          ports:
+            - name: http
+              containerPort: 8090
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: argus-config
+          env:
+            - name: ARGUS_PREDICTOR_PORT
+              value: "8090"
+            - name: ARGUS_MODEL_PATH
+              value: "/models/model.onnx"
+          volumeMounts:
+            - name: model-volume
+              mountPath: /models
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: model-volume
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: predictor
+  namespace: argus
+  labels:
+    app: predictor
+    app.kubernetes.io/part-of: argus
+spec:
+  selector:
+    app: predictor
+  ports:
+    - name: http
+      port: 8090
+      targetPort: 8090
+      protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argus-predictor
+  namespace: argus
+  labels:
+    app: predictor
+    app.kubernetes.io/part-of: argus
