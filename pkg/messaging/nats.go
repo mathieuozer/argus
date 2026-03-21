@@ -63,7 +63,7 @@ func (c *Conn) EnsureStream(cfg *nats.StreamConfig) (*nats.StreamInfo, error) {
 
 // Close closes the NATS connection.
 func (c *Conn) Close() {
-	c.nc.Drain()
+	_ = c.nc.Drain()
 	c.nc.Close()
 }
 

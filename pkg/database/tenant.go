@@ -34,7 +34,7 @@ func WithTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID string) (pgx
 
 	_, err = tx.Exec(ctx, "SET LOCAL app.tenant_id = $1", tenantID)
 	if err != nil {
-		tx.Rollback(ctx)
+		_ = tx.Rollback(ctx)
 		return nil, fmt.Errorf("set tenant context: %w", err)
 	}
 
@@ -50,7 +50,7 @@ func ExecWithTenant(ctx context.Context, pool *pgxpool.Pool, tenantID string, sq
 
 	_, err = tx.Exec(ctx, sql, args...)
 	if err != nil {
-		tx.Rollback(ctx)
+		_ = tx.Rollback(ctx)
 		return fmt.Errorf("exec: %w", err)
 	}
 
@@ -66,13 +66,13 @@ func QueryWithTenant(ctx context.Context, pool *pgxpool.Pool, tenantID string, s
 
 	rows, err := tx.Query(ctx, sql, args...)
 	if err != nil {
-		tx.Rollback(ctx)
+		_ = tx.Rollback(ctx)
 		return nil, nil, fmt.Errorf("query: %w", err)
 	}
 
 	cleanup := func() {
 		rows.Close()
-		tx.Commit(ctx)
+		_ = tx.Commit(ctx)
 	}
 
 	return rows, cleanup, nil

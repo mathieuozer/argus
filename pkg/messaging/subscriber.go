@@ -29,10 +29,10 @@ func (s *Subscriber) SubscribeAll(ctx context.Context, consumerName string, hand
 		func(msg *nats.Msg) {
 			if err := handler(msg); err != nil {
 				log.Printf("message handler error: %v", err)
-				msg.Nak()
+				_ = msg.Nak()
 				return
 			}
-			msg.Ack()
+			_ = msg.Ack()
 		},
 		nats.Durable(consumerName),
 		nats.ManualAck(),
@@ -48,7 +48,7 @@ func (s *Subscriber) SubscribeAll(ctx context.Context, consumerName string, hand
 
 	go func() {
 		<-ctx.Done()
-		sub.Unsubscribe()
+		_ = sub.Unsubscribe()
 	}()
 
 	return nil
@@ -62,10 +62,10 @@ func (s *Subscriber) SubscribeTenant(ctx context.Context, tenantID string, consu
 		func(msg *nats.Msg) {
 			if err := handler(msg); err != nil {
 				log.Printf("message handler error for tenant %s: %v", tenantID, err)
-				msg.Nak()
+				_ = msg.Nak()
 				return
 			}
-			msg.Ack()
+			_ = msg.Ack()
 		},
 		nats.Durable(consumerName),
 		nats.ManualAck(),
@@ -80,7 +80,7 @@ func (s *Subscriber) SubscribeTenant(ctx context.Context, tenantID string, consu
 
 	go func() {
 		<-ctx.Done()
-		sub.Unsubscribe()
+		_ = sub.Unsubscribe()
 	}()
 
 	return nil
@@ -89,6 +89,6 @@ func (s *Subscriber) SubscribeTenant(ctx context.Context, tenantID string, consu
 // Close unsubscribes from all subscriptions.
 func (s *Subscriber) Close() {
 	for _, sub := range s.subs {
-		sub.Unsubscribe()
+		_ = sub.Unsubscribe()
 	}
 }
