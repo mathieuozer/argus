@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -40,7 +41,7 @@ func main() {
 	}
 
 	log := logger.Default()
-	defer log.Sync()
+	defer func() { _ = log.Sync() }()
 
 	spanCollector := collector.New(log)
 	scrubber := pii.New()
@@ -69,6 +70,9 @@ func main() {
 	dqValidator := dataquality.NewValidator()
 	dqScorer := dataquality.NewScorer(dqValidator, 5*time.Minute)
 	guardrailEngine := telguardrails.NewEngine(nil)
+
+	// spanDataTracker accumulates recent span data per agent for quality scoring.
+	spanDataTracker := newSpanDataTracker(1000)
 
 	// Wire auto-quarantine callback
 	predictorClient.SetQuarantineCallback(func(agentID, tenantID string) {
@@ -121,7 +125,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	// Span ingestion endpoint
@@ -138,12 +142,32 @@ func main() {
 				return
 			}
 
-			// Set tenant ID, classify, scrub, discover, and check guardrails for each span
+			// Set tenant ID, classify, scrub, discover, validate quality, and check guardrails for each span
 			for _, span := range req.Spans {
 				span.TenantID = tenantID
 
 				// Auto-discover data sources from span
 				catalogDiscoverer.DiscoverFromSpan(tenantID, span.AgentID, span.OperationName, span.Attributes)
+
+				// Run data quality validation on span attributes
+				attrMap := toInterfaceMap(span.Attributes)
+				attrMap["operation_name"] = span.OperationName
+				attrMap["duration_ms"] = span.DurationMs
+				dqResults := dqValidator.Validate(span.AgentID, attrMap)
+				for _, result := range dqResults {
+					if !result.Passed {
+						log.Warn("data quality violation",
+							zap.String("agent_id", span.AgentID),
+							zap.String("span_id", span.SpanID),
+							zap.String("rule", result.RuleName),
+							zap.String("message", result.Message),
+							zap.String("severity", result.Severity),
+						)
+					}
+				}
+
+				// Track span data for quality scoring
+				spanDataTracker.Track(span.AgentID, attrMap, span.StartedAt)
 
 				// Run guardrail checks on span content
 				if content, ok := span.Attributes["input"]; ok {
@@ -286,7 +310,8 @@ func main() {
 			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "agent_id is required")
 			return
 		}
-		score := dqScorer.Score(agentID, nil, nil, nil)
+		records, timestamps := spanDataTracker.Get(agentID)
+		score := dqScorer.Score(agentID, records, nil, timestamps)
 		writeJSON(w, http.StatusOK, score, tenantID)
 	})))
 
@@ -323,7 +348,7 @@ func main() {
 func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"data": data,
 		"meta": map[string]string{"tenant_id": tenantID},
 	})
@@ -332,10 +357,55 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID str
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"error": map[string]string{
 			"code":    code,
 			"message": message,
 		},
 	})
+}
+
+// toInterfaceMap converts map[string]string to map[string]interface{} for the
+// data quality validator which operates on generic maps.
+func toInterfaceMap(m map[string]string) map[string]interface{} {
+	result := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		result[k] = v
+	}
+	return result
+}
+
+// spanDataTracker accumulates recent span data per agent for quality scoring.
+type spanDataTracker struct {
+	mu         sync.RWMutex
+	maxPerAgent int
+	records    map[string][]map[string]interface{}
+	timestamps map[string][]time.Time
+}
+
+func newSpanDataTracker(maxPerAgent int) *spanDataTracker {
+	return &spanDataTracker{
+		maxPerAgent: maxPerAgent,
+		records:     make(map[string][]map[string]interface{}),
+		timestamps:  make(map[string][]time.Time),
+	}
+}
+
+func (t *spanDataTracker) Track(agentID string, data map[string]interface{}, ts time.Time) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.records[agentID] = append(t.records[agentID], data)
+	t.timestamps[agentID] = append(t.timestamps[agentID], ts)
+
+	// Evict oldest entries if over limit.
+	if len(t.records[agentID]) > t.maxPerAgent {
+		t.records[agentID] = t.records[agentID][len(t.records[agentID])-t.maxPerAgent:]
+		t.timestamps[agentID] = t.timestamps[agentID][len(t.timestamps[agentID])-t.maxPerAgent:]
+	}
+}
+
+func (t *spanDataTracker) Get(agentID string) ([]map[string]interface{}, []time.Time) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.records[agentID], t.timestamps[agentID]
 }

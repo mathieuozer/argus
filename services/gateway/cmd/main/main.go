@@ -27,7 +27,7 @@ func main() {
 	}
 
 	log := logger.Default()
-	defer log.Sync()
+	defer func() { _ = log.Sync() }()
 
 	limiter := ratelimit.New(100, time.Minute)
 	reverseProxy := proxy.New(cfg, log)
@@ -38,7 +38,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	// Register WebSocket routes before the catch-all proxy.

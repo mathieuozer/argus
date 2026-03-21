@@ -223,6 +223,102 @@ func TestHeartbeat(t *testing.T) {
 	}
 }
 
+func TestQuarantineAgent(t *testing.T) {
+	tests := []struct {
+		name     string
+		tenantID string
+		agentID  string
+		setup    func(*Registry)
+		wantErr  bool
+	}{
+		{
+			name:     "successfully quarantines a healthy agent",
+			tenantID: "tenant-1",
+			agentID:  "agent-1",
+			setup: func(r *Registry) {
+				r.Register("tenant-1", &RegisterRequest{AgentID: "agent-1", Version: "1.0.0"})
+				_ = r.Heartbeat("tenant-1", "agent-1", StatusHealthy)
+			},
+			wantErr: false,
+		},
+		{
+			name:     "successfully quarantines a degraded agent",
+			tenantID: "tenant-1",
+			agentID:  "agent-1",
+			setup: func(r *Registry) {
+				r.Register("tenant-1", &RegisterRequest{AgentID: "agent-1", Version: "1.0.0"})
+				_ = r.Heartbeat("tenant-1", "agent-1", StatusDegraded)
+			},
+			wantErr: false,
+		},
+		{
+			name:     "quarantining already quarantined agent is idempotent",
+			tenantID: "tenant-1",
+			agentID:  "agent-1",
+			setup: func(r *Registry) {
+				r.Register("tenant-1", &RegisterRequest{AgentID: "agent-1", Version: "1.0.0"})
+				_ = r.QuarantineAgent("tenant-1", "agent-1")
+			},
+			wantErr: false,
+		},
+		{
+			name:     "agent not found",
+			tenantID: "tenant-1",
+			agentID:  "nonexistent",
+			setup: func(r *Registry) {
+				r.Register("tenant-1", &RegisterRequest{AgentID: "agent-1", Version: "1.0.0"})
+			},
+			wantErr: true,
+		},
+		{
+			name:     "tenant not found",
+			tenantID: "nonexistent",
+			agentID:  "agent-1",
+			setup:    func(r *Registry) {},
+			wantErr:  true,
+		},
+		{
+			name:     "cross-tenant quarantine fails",
+			tenantID: "tenant-2",
+			agentID:  "agent-1",
+			setup: func(r *Registry) {
+				r.Register("tenant-1", &RegisterRequest{AgentID: "agent-1", Version: "1.0.0"})
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := New()
+			tc.setup(reg)
+
+			beforeQuarantine := time.Now()
+			err := reg.QuarantineAgent(tc.tenantID, tc.agentID)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			agent, err := reg.Get(tc.tenantID, tc.agentID)
+			if err != nil {
+				t.Fatalf("failed to get agent after quarantine: %v", err)
+			}
+			if agent.Status != StatusQuarantined {
+				t.Errorf("expected status %q, got %q", StatusQuarantined, agent.Status)
+			}
+			if agent.LastSeen.Before(beforeQuarantine) {
+				t.Error("expected LastSeen to be updated to current time")
+			}
+		})
+	}
+}
+
 func TestFindByCapabilities(t *testing.T) {
 	tests := []struct {
 		name         string

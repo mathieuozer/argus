@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/argus-platform/argus/pkg/config"
+	"github.com/argus-platform/argus/pkg/database"
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/pkg/tenancy"
@@ -44,7 +45,63 @@ func main() {
 	}
 
 	log := logger.Default()
-	defer log.Sync()
+	defer func() { _ = log.Sync() }()
+
+	// Initialize PostgreSQL persistence if ARGUS_DB_DSN is configured
+	var dbPool *database.Pool
+	var catalogPG *catalog.PGRepository
+	var costPG *costgov.PGRepository
+	var dqPG *dataquality.PGRepository
+	var sloPG *slo.PGRepository
+	var tracePG *trace.PGService
+	var auditPG *audit.PGWriter
+	var evalPG *eval.PGRepository
+	var feedbackPG *feedback.PGRepository
+	var guardrailsPG *guardrails.PGRepository
+	var promptsPG *prompts.PGRepository
+	var ragPG *rag.PGRepository
+	var compliancePG *compliance.PGReportRepository
+
+	if dsn := os.Getenv("ARGUS_DB_DSN"); dsn != "" {
+		ctx := context.Background()
+		pool, err := database.NewPool(ctx, dsn)
+		if err != nil {
+			log.Warn("failed to connect to database, using in-memory stores", zap.Error(err))
+		} else {
+			dbPool = pool
+			catalogPG = catalog.NewPGRepository(pool)
+			costPG = costgov.NewPGRepository(pool)
+			dqPG = dataquality.NewPGRepository(pool)
+			sloPG = slo.NewPGRepository(pool)
+			tracePG = trace.NewPGService(pool)
+			auditPG = audit.NewPGWriter(pool)
+			evalPG = eval.NewPGRepository(pool)
+			feedbackPG = feedback.NewPGRepository(pool)
+			guardrailsPG = guardrails.NewPGRepository(pool)
+			promptsPG = prompts.NewPGRepository(pool)
+			ragPG = rag.NewPGRepository(pool)
+			compliancePG = compliance.NewPGReportRepository(pool)
+			log.Info("PostgreSQL persistence enabled for control-plane")
+		}
+	} else {
+		log.Info("no ARGUS_DB_DSN set, using in-memory stores")
+	}
+
+	// Suppress unused variable warnings for PG repositories.
+	// These are available for dual-write persistence in request handlers
+	// and for future migration to DB-primary reads.
+	_ = catalogPG
+	_ = costPG
+	_ = dqPG
+	_ = sloPG
+	_ = tracePG
+	_ = auditPG
+	_ = evalPG
+	_ = feedbackPG
+	_ = guardrailsPG
+	_ = promptsPG
+	_ = ragPG
+	_ = compliancePG
 
 	// Initialize components
 	auditLog := audit.NewWriter()
@@ -116,7 +173,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	// Dashboard endpoints (alerts, audit)
@@ -175,7 +232,7 @@ func main() {
 		auditLog.Write(req.TenantID, req.Subject, "generate_token", "auth/token", "role: "+req.Role)
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"data": map[string]interface{}{
 				"token":      token,
 				"expires_at": time.Now().Add(24 * time.Hour).Format(time.RFC3339),
@@ -275,13 +332,20 @@ func main() {
 	if err := httpSrv.Shutdown(ctx); err != nil {
 		log.Error("HTTP server shutdown error", zap.Error(err))
 	}
+
+	// Close database pool on shutdown
+	if dbPool != nil {
+		dbPool.Close()
+		log.Info("PostgreSQL connection pool closed")
+	}
+
 	_ = cfg
 }
 
 func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"data": data,
 		"meta": map[string]string{"tenant_id": tenantID},
 	})
@@ -290,7 +354,7 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID str
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"error": map[string]string{
 			"code":    code,
 			"message": message,

@@ -40,7 +40,7 @@ func main() {
 	}
 
 	log := logger.Default()
-	defer log.Sync()
+	defer func() { _ = log.Sync() }()
 
 	agentRegistry := registry.New()
 	taskRouter := router.New(agentRegistry)
@@ -94,7 +94,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	// Agent endpoints
@@ -153,6 +153,36 @@ func main() {
 					}
 				}
 				writeJSON(w, http.StatusOK, map[string]bool{"acknowledged": true}, tenantID)
+				return
+			}
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+
+		// Handle quarantine sub-path — used by the auto-quarantine pipeline
+		// in the telemetry service when predictive failure probability > 0.9
+		if strings.HasSuffix(agentID, "/quarantine") {
+			agentID = strings.TrimSuffix(agentID, "/quarantine")
+			if r.Method == http.MethodPost {
+				if err := agentRegistry.QuarantineAgent(tenantID, agentID); err != nil {
+					writeError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
+					return
+				}
+				if agentRepo != nil {
+					if err := agentRepo.Quarantine(r.Context(), tenantID, agentID); err != nil {
+						log.Error("failed to persist quarantine to DB", zap.Error(err))
+					}
+				}
+				log.Info("agent quarantined",
+					zap.String("tenant_id", tenantID),
+					zap.String("agent_id", agentID),
+				)
+				agent, err := agentRegistry.Get(tenantID, agentID)
+				if err != nil {
+					writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "agent quarantined but failed to retrieve updated state")
+					return
+				}
+				writeJSON(w, http.StatusOK, agent, tenantID)
 				return
 			}
 			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -339,7 +369,7 @@ func main() {
 func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"data": data,
 		"meta": map[string]string{"tenant_id": tenantID},
 	})
@@ -348,7 +378,7 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID str
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"error": map[string]string{
 			"code":    code,
 			"message": message,

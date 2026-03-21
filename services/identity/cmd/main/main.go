@@ -34,7 +34,7 @@ func main() {
 	}
 
 	log := logger.Default()
-	defer log.Sync()
+	defer func() { _ = log.Sync() }()
 
 	authority, err := ca.NewDevCA()
 	if err != nil {
@@ -70,7 +70,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	// SVID creation endpoint
@@ -208,7 +208,7 @@ func main() {
 
 		entries := revocationStore.List()
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"data": entries,
 		})
 	}))
@@ -216,7 +216,7 @@ func main() {
 	// CA certificate endpoint (public)
 	mux.HandleFunc("/api/v1/identity/ca", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/x-pem-file")
-		w.Write(authority.CACertPEM())
+		_, _ = w.Write(authority.CACertPEM())
 	})
 
 	handler := middleware.CORS(middleware.RequestLogger(log)(mux))
@@ -252,7 +252,7 @@ func main() {
 func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"data": data,
 		"meta": map[string]string{"tenant_id": tenantID},
 	})
@@ -261,7 +261,7 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID str
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"error": map[string]string{
 			"code":    code,
 			"message": message,

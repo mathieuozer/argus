@@ -27,7 +27,7 @@ func main() {
 	}
 
 	log := logger.Default()
-	defer log.Sync()
+	defer func() { _ = log.Sync() }()
 
 	// Read agent config from env
 	agentID := getEnv("ARGUS_AGENT_ID", "unknown-agent")
@@ -71,7 +71,7 @@ func main() {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":     "ok",
 			"registered": disc.IsRegistered(),
 			"agent_id":   agentID,
@@ -82,7 +82,7 @@ func main() {
 	// Status endpoint with detailed info
 	mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"agent_id":   agentID,
 			"version":    agentVersion,
 			"framework":  agentFramework,
