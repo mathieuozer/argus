@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argus-gcc-sa
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: argus-config
+    patch: |
+      - op: replace
+        path: /data/ARGUS_COMPLIANCE_PROFILE
+        value: "gcc-sa"
+      - op: replace
+        path: /data/ARGUS_STORAGE_REGION
+        value: "sa-riyadh-1"
+      - op: replace
+        path: /data/ARGUS_AIR_GAP
+        value: "true"
+      - op: replace
+        path: /data/ARGUS_PII_PROFILE
+        value: "gcc-sa"
+      - op: replace
+        path: /data/ARGUS_DATA_TIER_DEFAULT
+        value: "3"
+      - op: replace
+        path: /data/ARGUS_LOCALE
+        value: "ar"
+
+  - target:
+      kind: Deployment
+    patch: |
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+          - name: stc-cloud-registry
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+
+commonLabels:
+  argus.io/region: sa
+  argus.io/compliance: ndmo
+  argus.io/environment: production
