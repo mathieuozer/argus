@@ -91,7 +91,7 @@ func (h *Handler) handleTraceByID(w http.ResponseWriter, r *http.Request) {
 func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"data": data,
 		"meta": map[string]string{"tenant_id": tenantID},
 	})
@@ -100,7 +100,7 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID str
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"error": map[string]string{
 			"code":    code,
 			"message": message,
