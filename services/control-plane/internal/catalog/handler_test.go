@@ -395,7 +395,7 @@ func TestHandleSourceLineage(t *testing.T) {
 			seed: func(r *Repository) {
 				r.CreateSource("tenant-a", "source-a", "desc", SourceTypeDatabase, "owner", "", nil, nil) // src-1
 				r.CreateSource("tenant-a", "source-b", "desc", SourceTypeAPI, "owner", "", nil, nil)      // src-2
-				r.AddLineageEdge("tenant-a", "src-1", "src-2", "transform", "agent-1", "ETL pipeline")
+				_, _ = r.AddLineageEdge("tenant-a", "src-1", "src-2", "transform", "agent-1", "ETL pipeline")
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -439,8 +439,8 @@ func TestHandleSourceLineage_VerifyGraph(t *testing.T) {
 	repo.CreateSource("tenant-a", "raw-data", "desc", SourceTypeDatabase, "owner", "", nil, nil)  // src-1
 	repo.CreateSource("tenant-a", "processed", "desc", SourceTypeAPI, "owner", "", nil, nil)       // src-2
 	repo.CreateSource("tenant-a", "report", "desc", SourceTypeFile, "owner", "", nil, nil)         // src-3
-	repo.AddLineageEdge("tenant-a", "src-1", "src-2", "transform", "agent-1", "ETL")
-	repo.AddLineageEdge("tenant-a", "src-2", "src-3", "aggregate", "agent-2", "Report gen")
+	_, _ = repo.AddLineageEdge("tenant-a", "src-1", "src-2", "transform", "agent-1", "ETL")
+	_, _ = repo.AddLineageEdge("tenant-a", "src-2", "src-3", "aggregate", "agent-2", "Report gen")
 	mux := serveMux(h)
 
 	// Check lineage from the middle node (src-2)
@@ -498,7 +498,7 @@ func TestHandleLineageEdges_GET(t *testing.T) {
 			seed: func(r *Repository) {
 				r.CreateSource("tenant-a", "a", "desc", SourceTypeDatabase, "o", "", nil, nil)
 				r.CreateSource("tenant-a", "b", "desc", SourceTypeAPI, "o", "", nil, nil)
-				r.AddLineageEdge("tenant-a", "src-1", "src-2", "transform", "agent-1", "desc")
+				_, _ = r.AddLineageEdge("tenant-a", "src-1", "src-2", "transform", "agent-1", "desc")
 			},
 			wantStatus:    http.StatusOK,
 			wantEdgeCount: 1,
@@ -509,10 +509,10 @@ func TestHandleLineageEdges_GET(t *testing.T) {
 			seed: func(r *Repository) {
 				r.CreateSource("tenant-a", "a", "desc", SourceTypeDatabase, "o", "", nil, nil)
 				r.CreateSource("tenant-a", "b", "desc", SourceTypeAPI, "o", "", nil, nil)
-				r.AddLineageEdge("tenant-a", "src-1", "src-2", "copy", "agent-1", "desc")
+				_, _ = r.AddLineageEdge("tenant-a", "src-1", "src-2", "copy", "agent-1", "desc")
 				r.CreateSource("tenant-b", "c", "desc", SourceTypeDatabase, "o", "", nil, nil)
 				r.CreateSource("tenant-b", "d", "desc", SourceTypeAPI, "o", "", nil, nil)
-				r.AddLineageEdge("tenant-b", "src-3", "src-4", "copy", "agent-2", "desc")
+				_, _ = r.AddLineageEdge("tenant-b", "src-3", "src-4", "copy", "agent-2", "desc")
 			},
 			wantStatus:    http.StatusOK,
 			wantEdgeCount: 1,

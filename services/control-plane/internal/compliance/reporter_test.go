@@ -30,7 +30,7 @@ func TestGenerateReport(t *testing.T) {
 	}
 
 	var resp map[string]any
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	data := resp["data"].(map[string]any)
 	if data["profile_name"] != "Saudi Arabia (NDMO)" {
 		t.Errorf("unexpected profile name: %v", data["profile_name"])

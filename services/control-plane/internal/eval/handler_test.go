@@ -79,7 +79,7 @@ func TestRunEval(t *testing.T) {
 	}
 
 	var resp map[string]any
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	data := resp["data"].(map[string]any)
 	if data["status"] != "completed" {
 		t.Errorf("expected status completed, got %v", data["status"])

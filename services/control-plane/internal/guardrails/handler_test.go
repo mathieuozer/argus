@@ -60,7 +60,7 @@ func TestCrossTenantIsolation(t *testing.T) {
 	handler.ListRules(w, req)
 
 	var resp map[string]any
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	data := resp["data"].([]any)
 	if len(data) != 0 {
 		t.Errorf("expected 0 rules for tenant-b, got %d", len(data))

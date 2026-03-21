@@ -280,7 +280,7 @@ func randomSuffix() string {
 	b := make([]byte, 8)
 	for i := range b {
 		b[i] = chars[time.Now().UnixNano()%int64(len(chars))]
-		time.Sleep(1) // vary the nanosecond
+		time.Sleep(1 * time.Nanosecond) // vary the nanosecond
 	}
 	return string(b)
 }
