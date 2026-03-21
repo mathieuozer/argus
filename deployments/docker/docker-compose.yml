@@ -24,14 +24,14 @@ services:
 
   nats:
     image: nats:latest
-    command: ["--jetstream", "--store_dir=/data", "--name=argus-nats"]
+    command: ["--jetstream", "--store_dir=/data", "--name=argus-nats", "--http_port=8222"]
     ports:
       - "4222:4222"   # Client connections
       - "8222:8222"   # HTTP monitoring
     volumes:
       - natsdata:/data
     healthcheck:
-      test: ["CMD", "nats-server", "--signal", "ldm"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -71,7 +71,7 @@ services:
       postgres:
         condition: service_healthy
       nats:
-        condition: service_started
+        condition: service_healthy
     networks:
       - argus-net
 
@@ -116,7 +116,7 @@ services:
       postgres:
         condition: service_healthy
       nats:
-        condition: service_started
+        condition: service_healthy
     networks:
       - argus-net
 
@@ -140,7 +140,7 @@ services:
       postgres:
         condition: service_healthy
       nats:
-        condition: service_started
+        condition: service_healthy
     networks:
       - argus-net
 
@@ -164,7 +164,7 @@ services:
       postgres:
         condition: service_healthy
       nats:
-        condition: service_started
+        condition: service_healthy
     networks:
       - argus-net
 

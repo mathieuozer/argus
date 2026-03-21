@@ -86,7 +86,7 @@ build-sidecar: ## Build sidecar binary
 test: ## Run all unit tests across all Go modules
 	$(GOTEST) ./pkg/... ./services/control-plane/... ./services/orchestrator/... \
 		./services/telemetry/... ./services/identity/... ./services/gateway/... \
-		./sidecar/...
+		./sidecar/... ./sdk/go/...
 
 test-int: test-infra-up ## Run integration tests (starts test DB + NATS automatically)
 	$(GOTEST) -v -count=1 github.com/argus-platform/argus/services/orchestrator/tests/integration/...
@@ -107,16 +107,18 @@ test-cover: ## Run tests with coverage report
 	$(GOTEST) -coverprofile=coverage.out -covermode=atomic \
 		./pkg/... ./services/control-plane/... ./services/orchestrator/... \
 		./services/telemetry/... ./services/identity/... ./services/gateway/... \
-		./sidecar/...
+		./sidecar/... ./sdk/go/...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 
 # ─── Lint & Format ──────────────────────────────────────────────────────────
 
 lint: ## Run golangci-lint across workspace
-	golangci-lint run ./pkg/... ./services/control-plane/... ./services/orchestrator/... \
-		./services/telemetry/... ./services/identity/... ./services/gateway/... \
-		./sidecar/...
+	@CONFIG="$$(pwd)/.golangci.yml"; \
+	for dir in pkg services/control-plane services/orchestrator services/telemetry services/identity services/gateway sidecar sdk/go; do \
+		echo "=== Linting $$dir ==="; \
+		(cd $$dir && golangci-lint run --config "$$CONFIG" ./...); \
+	done
 
 fmt: ## Run gofmt on all Go source files
 	gofmt -s -w pkg/ services/ sidecar/

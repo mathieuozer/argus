@@ -31,6 +31,7 @@ import (
 	"github.com/argus-platform/argus/services/control-plane/internal/rag"
 	"github.com/argus-platform/argus/services/control-plane/internal/slo"
 	"github.com/argus-platform/argus/services/control-plane/internal/trace"
+	ws "github.com/argus-platform/argus/services/control-plane/internal/websocket"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -91,6 +92,9 @@ func main() {
 	complianceRepo := compliance.NewReportRepository()
 	complianceHandler := compliance.NewReportHandler(complianceRepo)
 
+	// WebSocket stream hub for real-time agent and telemetry events
+	wsHub := ws.NewHub(log)
+
 	// gRPC server
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(middleware.TenantUnaryInterceptor()),
@@ -133,6 +137,9 @@ func main() {
 	promptsHandler.RegisterRoutes(mux)
 	ragHandler.RegisterRoutes(mux)
 	complianceHandler.RegisterRoutes(mux)
+
+	// WebSocket stream routes (real-time agent and telemetry events)
+	wsHub.RegisterRoutes(mux)
 
 	// Auth endpoint - generate tokens (dev mode)
 	mux.HandleFunc("/api/v1/auth/token", func(w http.ResponseWriter, r *http.Request) {
@@ -261,6 +268,7 @@ func main() {
 	<-quit
 
 	log.Info("shutting down control-plane")
+	wsHub.Shutdown()
 	grpcServer.GracefulStop()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

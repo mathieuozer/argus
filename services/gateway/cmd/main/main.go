@@ -15,6 +15,7 @@ import (
 	"github.com/argus-platform/argus/services/gateway/internal/mtls"
 	"github.com/argus-platform/argus/services/gateway/internal/proxy"
 	"github.com/argus-platform/argus/services/gateway/internal/ratelimit"
+	"github.com/argus-platform/argus/services/gateway/internal/websocket"
 	"go.uber.org/zap"
 )
 
@@ -31,11 +32,18 @@ func main() {
 	limiter := ratelimit.New(100, time.Minute)
 	reverseProxy := proxy.New(cfg, log)
 
+	// WebSocket proxy for real-time streams
+	wsHandler := websocket.New(websocket.DefaultRoutes(), log)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok"}`))
 	})
+
+	// Register WebSocket routes before the catch-all proxy.
+	wsHandler.RegisterRoutes(mux)
+
 	mux.Handle("/", reverseProxy)
 
 	handler := middleware.CORS(
