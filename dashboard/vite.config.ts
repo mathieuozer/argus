@@ -9,6 +9,15 @@ export default defineConfig({
     react(),
     ...(useMockApi ? [mockApiPlugin()] : []),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          recharts: ['recharts'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     ...(useMockApi

@@ -884,6 +884,117 @@ pre {
   color: var(--color-text-muted);
 }
 
+/* --- Search Filter Bar --- */
+.search-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.search-input-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-dim);
+  pointer-events: none;
+}
+
+.search-input {
+  padding-left: 36px !important;
+}
+
+.filter-group {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.filter-select {
+  width: auto;
+  min-width: 140px;
+}
+
+/* --- Tab Bar --- */
+.tab-bar {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0;
+}
+
+.tab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  font-family: var(--font-family);
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-bottom: -1px;
+}
+
+.tab-item:hover {
+  color: var(--color-text);
+}
+
+.tab-item-active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* --- Chart Card --- */
+.chart-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color var(--transition-base);
+}
+
+.chart-card:hover {
+  border-color: var(--color-border-focus);
+}
+
+.chart-card-header {
+  padding: var(--space-4) var(--space-5) var(--space-2);
+}
+
+.chart-card-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.chart-card-body {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+/* --- Slow spin animation for auto-refresh icon --- */
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 2s linear infinite;
+}
+
 /* --- Responsive --- */
 @media (max-width: 1024px) {
   .grid-4 {

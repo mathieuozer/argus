@@ -4,6 +4,7 @@ import StatusBadge from './StatusBadge';
 
 interface AgentCardProps {
   agent: Agent;
+  onNavigate?: () => void;
 }
 
 function formatLastSeen(lastSeen: string): string {
@@ -21,7 +22,7 @@ function formatLastSeen(lastSeen: string): string {
   return `${diffDays}d ago`;
 }
 
-function AgentCard({ agent }: AgentCardProps) {
+function AgentCard({ agent, onNavigate }: AgentCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -101,6 +102,23 @@ function AgentCard({ agent }: AgentCardProps) {
               <span className="text-sm text-dim">No capabilities declared</span>
             )}
           </div>
+          {onNavigate && (
+            <div style={{ marginTop: 'var(--space-4)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNavigate();
+                }}
+              >
+                View Details
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12 5 19 12 12 19" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

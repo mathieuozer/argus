@@ -1,13 +1,47 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAgentStore } from '../stores/agentStore';
 import AgentCard from '../components/agents/AgentCard';
+import SearchFilter from '../components/shared/SearchFilter';
+import AutoRefreshToggle from '../components/shared/AutoRefreshToggle';
+
+const STATUS_OPTIONS = [
+  { label: 'Healthy', value: 'healthy' },
+  { label: 'Degraded', value: 'degraded' },
+  { label: 'Failed', value: 'failed' },
+  { label: 'Quarantined', value: 'quarantined' },
+  { label: 'Discovered', value: 'discovered' },
+];
+
+const FRAMEWORK_OPTIONS = [
+  { label: 'LangChain', value: 'langchain' },
+  { label: 'AutoGen', value: 'autogen' },
+  { label: 'CrewAI', value: 'crewai' },
+  { label: 'Custom', value: 'custom' },
+];
 
 function AgentsPage() {
   const { agents, loading, error, fetchAgents } = useAgentStore();
+  const navigate = useNavigate();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [frameworkFilter, setFrameworkFilter] = useState('');
 
   useEffect(() => {
     fetchAgents();
   }, [fetchAgents]);
+
+  const filteredAgents = useMemo(() => {
+    return agents.filter((agent) => {
+      const matchesSearch = !search ||
+        agent.id.toLowerCase().includes(search.toLowerCase()) ||
+        agent.node_id.toLowerCase().includes(search.toLowerCase()) ||
+        agent.capabilities.some((c) => c.toLowerCase().includes(search.toLowerCase()));
+      const matchesStatus = !statusFilter || agent.status === statusFilter;
+      const matchesFramework = !frameworkFilter || agent.framework === frameworkFilter;
+      return matchesSearch && matchesStatus && matchesFramework;
+    });
+  }, [agents, search, statusFilter, frameworkFilter]);
 
   return (
     <div>
@@ -17,6 +51,7 @@ function AgentsPage() {
           <p>Monitor and manage discovered AI agents</p>
         </div>
         <div className="page-header-actions">
+          <AutoRefreshToggle onRefresh={fetchAgents} />
           <button className="btn" onClick={fetchAgents} disabled={loading}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 4 23 10 17 10" />
@@ -26,6 +61,18 @@ function AgentsPage() {
           </button>
         </div>
       </div>
+
+      {agents.length > 0 && (
+        <SearchFilter
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search agents by name, node, or capability..."
+          filters={[
+            { label: 'All Statuses', value: statusFilter, options: STATUS_OPTIONS, onChange: setStatusFilter },
+            { label: 'All Frameworks', value: frameworkFilter, options: FRAMEWORK_OPTIONS, onChange: setFrameworkFilter },
+          ]}
+        />
+      )}
 
       {error && (
         <div className="error-banner">
@@ -62,11 +109,22 @@ function AgentsPage() {
         </div>
       )}
 
-      {agents.length > 0 && (
+      {filteredAgents.length > 0 && (
         <div className="grid grid-auto">
-          {agents.map((agent) => (
-            <AgentCard key={agent.id} agent={agent} />
+          {filteredAgents.map((agent) => (
+            <AgentCard
+              key={agent.id}
+              agent={agent}
+              onNavigate={() => navigate(`/agents/${agent.id}`)}
+            />
           ))}
+        </div>
+      )}
+
+      {agents.length > 0 && filteredAgents.length === 0 && (
+        <div className="empty-state">
+          <h3>No matching agents</h3>
+          <p>Try adjusting your search or filters.</p>
         </div>
       )}
     </div>

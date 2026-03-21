@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useTaskStore } from '../stores/taskStore';
 import type { TaskStatus } from '../types/task';
 import StatusBadge from '../components/agents/StatusBadge';
+import SearchFilter from '../components/shared/SearchFilter';
+import AutoRefreshToggle from '../components/shared/AutoRefreshToggle';
 
 function formatDuration(startedAt: string, completedAt: string | null): string {
   const start = new Date(startedAt).getTime();
@@ -48,12 +50,32 @@ function getStatusIndicator(status: TaskStatus): string {
   }
 }
 
+const STATUS_OPTIONS = [
+  { label: 'Pending', value: 'pending' },
+  { label: 'Running', value: 'running' },
+  { label: 'Completed', value: 'completed' },
+  { label: 'Failed', value: 'failed' },
+  { label: 'Awaiting Approval', value: 'awaiting_approval' },
+];
+
 function TasksPage() {
   const { tasks, loading, error, fetchTasks } = useTaskStore();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      const matchesSearch = !search ||
+        task.id.toLowerCase().includes(search.toLowerCase()) ||
+        task.agent_id.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = !statusFilter || task.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [tasks, search, statusFilter]);
 
   return (
     <div>
@@ -63,6 +85,7 @@ function TasksPage() {
           <p>View and manage orchestrated agent tasks</p>
         </div>
         <div className="page-header-actions">
+          <AutoRefreshToggle onRefresh={fetchTasks} />
           <button className="btn" onClick={fetchTasks} disabled={loading}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 4 23 10 17 10" />
@@ -72,6 +95,17 @@ function TasksPage() {
           </button>
         </div>
       </div>
+
+      {tasks.length > 0 && (
+        <SearchFilter
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search by task ID or agent..."
+          filters={[
+            { label: 'All Statuses', value: statusFilter, options: STATUS_OPTIONS, onChange: setStatusFilter },
+          ]}
+        />
+      )}
 
       {error && (
         <div className="error-banner">
@@ -110,7 +144,7 @@ function TasksPage() {
         </div>
       )}
 
-      {tasks.length > 0 && (
+      {filteredTasks.length > 0 && (
         <div className="table-container animate-fade-in">
           <table className="table">
             <thead>
@@ -125,7 +159,7 @@ function TasksPage() {
               </tr>
             </thead>
             <tbody>
-              {tasks.map((task) => (
+              {filteredTasks.map((task) => (
                 <tr key={task.id}>
                   <td>
                     <span className="text-mono text-sm">{task.id.slice(0, 8)}</span>
@@ -158,6 +192,13 @@ function TasksPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {tasks.length > 0 && filteredTasks.length === 0 && (
+        <div className="empty-state">
+          <h3>No matching tasks</h3>
+          <p>Try adjusting your search or filters.</p>
         </div>
       )}
     </div>

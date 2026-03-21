@@ -1,6 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useMetricsStore } from '../stores/metricsStore';
+import type { PlatformTimeSeries } from '../types/telemetry';
+import apiClient from '../utils/apiClient';
 import StatCard from '../components/metrics/StatCard';
+import TimeSeriesChart from '../components/metrics/TimeSeriesChart';
+import AutoRefreshToggle from '../components/shared/AutoRefreshToggle';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -13,10 +17,21 @@ function formatCurrency(amount: number): string {
 
 function MetricsPage() {
   const { metrics, loading, error, fetchMetrics } = useMetricsStore();
+  const [timeSeries, setTimeSeries] = useState<PlatformTimeSeries | null>(null);
 
   useEffect(() => {
     fetchMetrics();
+    apiClient.get<PlatformTimeSeries>('/metrics/timeseries').then((res) => {
+      setTimeSeries(res.data);
+    });
   }, [fetchMetrics]);
+
+  const handleRefresh = () => {
+    fetchMetrics();
+    apiClient.get<PlatformTimeSeries>('/metrics/timeseries').then((res) => {
+      setTimeSeries(res.data);
+    });
+  };
 
   return (
     <div>
@@ -26,7 +41,8 @@ function MetricsPage() {
           <p>Platform-wide statistics and resource usage</p>
         </div>
         <div className="page-header-actions">
-          <button className="btn" onClick={fetchMetrics} disabled={loading}>
+          <AutoRefreshToggle onRefresh={handleRefresh} />
+          <button className="btn" onClick={handleRefresh} disabled={loading}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
@@ -55,7 +71,7 @@ function MetricsPage() {
       )}
 
       {metrics && (
-        <div className="grid grid-stats">
+        <div className="grid grid-stats mb-6">
           <StatCard
             label="Total Agents"
             value={metrics.total_agents}
@@ -104,6 +120,44 @@ function MetricsPage() {
             }
             iconBgColor={metrics.alert_count > 0 ? 'var(--color-danger-muted)' : 'rgba(139, 141, 152, 0.15)'}
             iconColor={metrics.alert_count > 0 ? 'var(--color-danger)' : 'var(--color-text-muted)'}
+          />
+        </div>
+      )}
+
+      {timeSeries && (
+        <div className="grid grid-2 animate-fade-in">
+          <TimeSeriesChart
+            title="Tasks Over Time"
+            data={timeSeries.total_tasks}
+            color="var(--color-primary)"
+          />
+          <TimeSeriesChart
+            title="Active Agents"
+            data={timeSeries.active_agents}
+            color="var(--color-success)"
+          />
+          <TimeSeriesChart
+            title="Cost Over Time"
+            data={timeSeries.total_cost}
+            color="var(--color-warning)"
+            formatValue={(v) => `$${v.toFixed(2)}`}
+          />
+          <TimeSeriesChart
+            title="Alert Count"
+            data={timeSeries.alert_count}
+            color="var(--color-danger)"
+          />
+          <TimeSeriesChart
+            title="Error Rate"
+            data={timeSeries.error_rate}
+            color="var(--color-danger)"
+            formatValue={(v) => `${(v * 100).toFixed(1)}%`}
+          />
+          <TimeSeriesChart
+            title="Average Latency"
+            data={timeSeries.avg_latency}
+            color="var(--color-info)"
+            unit="ms"
           />
         </div>
       )}

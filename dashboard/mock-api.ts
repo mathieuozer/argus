@@ -192,6 +192,71 @@ const mockMetrics = {
   alert_count: 3,
 };
 
+function generateTimeSeries(points: number, base: number, variance: number, trend: number = 0) {
+  const now = Date.now();
+  const interval = 5 * 60 * 1000; // 5 min intervals
+  return Array.from({ length: points }, (_, i) => ({
+    timestamp: new Date(now - (points - 1 - i) * interval).toISOString(),
+    value: Math.max(0, base + trend * i + (Math.random() - 0.5) * variance),
+  }));
+}
+
+function generatePlatformTimeSeries() {
+  return {
+    total_tasks: generateTimeSeries(24, 12, 6, 0.3),
+    active_agents: generateTimeSeries(24, 4, 2),
+    total_cost: generateTimeSeries(24, 1.2, 0.8, 0.1),
+    alert_count: generateTimeSeries(24, 2, 3),
+    error_rate: generateTimeSeries(24, 0.05, 0.04),
+    avg_latency: generateTimeSeries(24, 250, 150, 2),
+  };
+}
+
+function generateAgentTimeSeries() {
+  return {
+    latency_p50: generateTimeSeries(24, 120, 40),
+    latency_p99: generateTimeSeries(24, 450, 200, 5),
+    token_rate: generateTimeSeries(24, 80, 30),
+    error_rate: generateTimeSeries(24, 0.03, 0.02),
+    cost: generateTimeSeries(24, 0.08, 0.05, 0.005),
+  };
+}
+
+function generateAgentSpans(agentId: string) {
+  const operations = ['llm.completion', 'tool.call', 'retrieval.query', 'embedding.create', 'chain.run'];
+  const now = Date.now();
+  return Array.from({ length: 15 }, (_, i) => ({
+    span_id: `span-${agentId}-${String(i).padStart(3, '0')}`,
+    trace_id: `trace-${agentId}-${String(Math.floor(i / 3)).padStart(3, '0')}`,
+    tenant_id: 'ministry-finance-tr',
+    agent_id: agentId,
+    task_id: `task-${String(Math.floor(i / 3) + 1).padStart(3, '0')}`,
+    operation_name: operations[i % operations.length],
+    started_at: new Date(now - (15 - i) * 30000).toISOString(),
+    duration_ms: Math.floor(50 + Math.random() * 500),
+    tier: (i % 3 === 0 ? 1 : i % 3 === 1 ? 2 : 1) as 1 | 2 | 3,
+    attributes: {
+      model: i % 5 === 0 ? 'gpt-4' : 'gpt-3.5-turbo',
+      tokens: String(Math.floor(100 + Math.random() * 2000)),
+    },
+    error_code: i === 7 ? 'TIMEOUT' : i === 12 ? 'RATE_LIMITED' : null,
+  }));
+}
+
+function getAgentDetail(agentId: string) {
+  const agent = mockAgents.find((a) => a.id === agentId);
+  if (!agent) return null;
+  return {
+    ...agent,
+    tasks_completed: Math.floor(20 + Math.random() * 80),
+    tasks_failed: Math.floor(Math.random() * 10),
+    total_cost_usd: +(Math.random() * 15 + 2).toFixed(2),
+    total_tokens: Math.floor(50000 + Math.random() * 200000),
+    avg_latency_ms: Math.floor(80 + Math.random() * 300),
+    uptime_pct: +(95 + Math.random() * 5).toFixed(1),
+  };
+}
+
 function jsonResponse(data: unknown, tenantId: string) {
   return JSON.stringify({
     data,
@@ -207,14 +272,65 @@ export function mockApiPlugin(): Plugin {
         const tenantId = (req.headers['x-tenant-id'] as string) || 'default';
         res.setHeader('Content-Type', 'application/json');
 
-        if (req.url === '/agents') {
+        const url = req.url || '';
+
+        // Agent detail: /agents/:id
+        const agentDetailMatch = url.match(/^\/agents\/([^/]+)$/);
+        if (agentDetailMatch && req.method === 'GET') {
+          const detail = getAgentDetail(agentDetailMatch[1]);
+          if (detail) {
+            res.end(jsonResponse(detail, tenantId));
+          } else {
+            res.statusCode = 404;
+            res.end(JSON.stringify({ error: { code: 'AGENT_NOT_FOUND', message: 'Agent not found' } }));
+          }
+          return;
+        }
+
+        // Agent spans: /agents/:id/spans
+        const agentSpansMatch = url.match(/^\/agents\/([^/]+)\/spans$/);
+        if (agentSpansMatch && req.method === 'GET') {
+          const spans = generateAgentSpans(agentSpansMatch[1]);
+          res.end(jsonResponse(spans, tenantId));
+          return;
+        }
+
+        // Agent time series: /agents/:id/timeseries
+        const agentTsMatch = url.match(/^\/agents\/([^/]+)\/timeseries$/);
+        if (agentTsMatch && req.method === 'GET') {
+          res.end(jsonResponse(generateAgentTimeSeries(), tenantId));
+          return;
+        }
+
+        // Alert actions: PATCH /alerts/:id
+        const alertPatchMatch = url.match(/^\/alerts\/([^/]+)$/);
+        if (alertPatchMatch && req.method === 'PATCH') {
+          let body = '';
+          req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+          req.on('end', () => {
+            const update = JSON.parse(body);
+            const alert = mockAlerts.find((a) => a.id === alertPatchMatch[1]);
+            if (alert) {
+              alert.status = update.status || alert.status;
+              res.end(jsonResponse(alert, tenantId));
+            } else {
+              res.statusCode = 404;
+              res.end(JSON.stringify({ error: { code: 'ALERT_NOT_FOUND', message: 'Alert not found' } }));
+            }
+          });
+          return;
+        }
+
+        if (url === '/agents') {
           res.end(jsonResponse(mockAgents, tenantId));
-        } else if (req.url === '/tasks') {
+        } else if (url === '/tasks') {
           res.end(jsonResponse(mockTasks, tenantId));
-        } else if (req.url === '/alerts') {
+        } else if (url === '/alerts') {
           res.end(jsonResponse(mockAlerts, tenantId));
-        } else if (req.url === '/metrics') {
+        } else if (url === '/metrics') {
           res.end(jsonResponse(mockMetrics, tenantId));
+        } else if (url === '/metrics/timeseries') {
+          res.end(jsonResponse(generatePlatformTimeSeries(), tenantId));
         } else {
           next();
         }

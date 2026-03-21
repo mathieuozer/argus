@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import type { PredictiveAlert } from '../../types/alert';
+import type { PredictiveAlert, AlertStatus } from '../../types/alert';
 import StatusBadge from '../agents/StatusBadge';
 
 interface AlertRowProps {
   alert: PredictiveAlert;
+  onUpdateStatus?: (alertId: string, status: AlertStatus) => void;
 }
 
 function formatTTF(seconds: number): string {
@@ -32,6 +33,8 @@ function getPrecursorBadgeClass(type: string): string {
       return 'badge-danger';
     case 'retry_storm':
       return 'badge-danger';
+    case 'cost_runaway':
+      return 'badge-warning';
     case 'error_rate_inflection':
       return 'badge-warning';
     default:
@@ -54,10 +57,14 @@ function formatTimestamp(isoString: string): string {
   });
 }
 
-function AlertRow({ alert }: AlertRowProps) {
+function AlertRow({ alert, onUpdateStatus }: AlertRowProps) {
   const [showEvidence, setShowEvidence] = useState(false);
   const probabilityPct = (alert.probability * 100).toFixed(0);
   const probabilityColor = getProbabilityColor(alert.probability);
+
+  const canAcknowledge = alert.status === 'open';
+  const canResolve = alert.status === 'open' || alert.status === 'acknowledged';
+  const canMarkFalsePositive = alert.status === 'open' || alert.status === 'acknowledged';
 
   return (
     <>
@@ -88,14 +95,45 @@ function AlertRow({ alert }: AlertRowProps) {
           <span className="text-sm text-muted">{formatTimestamp(alert.created_at)}</span>
         </td>
         <td>
-          {alert.evidence.length > 0 && (
-            <button
-              className="btn btn-sm"
-              onClick={() => setShowEvidence(!showEvidence)}
-            >
-              {showEvidence ? 'Hide' : 'Show'} ({alert.evidence.length})
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {alert.evidence.length > 0 && (
+              <button
+                className="btn btn-sm"
+                onClick={() => setShowEvidence(!showEvidence)}
+              >
+                {showEvidence ? 'Hide' : 'Evidence'}
+              </button>
+            )}
+            {onUpdateStatus && canAcknowledge && (
+              <button
+                className="btn btn-sm"
+                onClick={() => onUpdateStatus(alert.id, 'acknowledged')}
+                title="Acknowledge alert"
+              >
+                Ack
+              </button>
+            )}
+            {onUpdateStatus && canResolve && (
+              <button
+                className="btn btn-sm"
+                style={{ color: 'var(--color-success)' }}
+                onClick={() => onUpdateStatus(alert.id, 'resolved')}
+                title="Mark as resolved"
+              >
+                Resolve
+              </button>
+            )}
+            {onUpdateStatus && canMarkFalsePositive && (
+              <button
+                className="btn btn-sm"
+                style={{ color: 'var(--color-text-muted)' }}
+                onClick={() => onUpdateStatus(alert.id, 'false_positive')}
+                title="Mark as false positive"
+              >
+                FP
+              </button>
+            )}
+          </div>
         </td>
       </tr>
       {showEvidence && alert.evidence.length > 0 && (

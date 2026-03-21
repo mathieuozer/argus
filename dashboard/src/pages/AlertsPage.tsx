@@ -1,13 +1,43 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAlertStore } from '../stores/alertStore';
 import AlertRow from '../components/alerts/AlertRow';
+import SearchFilter from '../components/shared/SearchFilter';
+import AutoRefreshToggle from '../components/shared/AutoRefreshToggle';
+
+const STATUS_OPTIONS = [
+  { label: 'Open', value: 'open' },
+  { label: 'Acknowledged', value: 'acknowledged' },
+  { label: 'Resolved', value: 'resolved' },
+  { label: 'False Positive', value: 'false_positive' },
+];
+
+const PRECURSOR_OPTIONS = [
+  { label: 'Latency Spike', value: 'latency_spike' },
+  { label: 'Token Escalation', value: 'token_escalation' },
+  { label: 'Retry Storm', value: 'retry_storm' },
+  { label: 'Cost Runaway', value: 'cost_runaway' },
+];
 
 function AlertsPage() {
-  const { alerts, loading, error, fetchAlerts } = useAlertStore();
+  const { alerts, loading, error, fetchAlerts, updateAlertStatus } = useAlertStore();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [precursorFilter, setPrecursorFilter] = useState('');
 
   useEffect(() => {
     fetchAlerts();
   }, [fetchAlerts]);
+
+  const filteredAlerts = useMemo(() => {
+    return alerts.filter((alert) => {
+      const matchesSearch = !search ||
+        alert.id.toLowerCase().includes(search.toLowerCase()) ||
+        alert.agent_id.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = !statusFilter || alert.status === statusFilter;
+      const matchesPrecursor = !precursorFilter || alert.precursor_type === precursorFilter;
+      return matchesSearch && matchesStatus && matchesPrecursor;
+    });
+  }, [alerts, search, statusFilter, precursorFilter]);
 
   return (
     <div>
@@ -17,6 +47,7 @@ function AlertsPage() {
           <p>ML-powered failure predictions for monitored agents</p>
         </div>
         <div className="page-header-actions">
+          <AutoRefreshToggle onRefresh={fetchAlerts} />
           <button className="btn" onClick={fetchAlerts} disabled={loading}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 4 23 10 17 10" />
@@ -26,6 +57,18 @@ function AlertsPage() {
           </button>
         </div>
       </div>
+
+      {alerts.length > 0 && (
+        <SearchFilter
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search by alert ID or agent..."
+          filters={[
+            { label: 'All Statuses', value: statusFilter, options: STATUS_OPTIONS, onChange: setStatusFilter },
+            { label: 'All Precursors', value: precursorFilter, options: PRECURSOR_OPTIONS, onChange: setPrecursorFilter },
+          ]}
+        />
+      )}
 
       {error && (
         <div className="error-banner">
@@ -60,7 +103,7 @@ function AlertsPage() {
         </div>
       )}
 
-      {alerts.length > 0 && (
+      {filteredAlerts.length > 0 && (
         <div className="table-container animate-fade-in">
           <table className="table">
             <thead>
@@ -72,15 +115,22 @@ function AlertsPage() {
                 <th>TTF</th>
                 <th>Status</th>
                 <th>Created</th>
-                <th>Evidence</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {alerts.map((alert) => (
-                <AlertRow key={alert.id} alert={alert} />
+              {filteredAlerts.map((alert) => (
+                <AlertRow key={alert.id} alert={alert} onUpdateStatus={updateAlertStatus} />
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {alerts.length > 0 && filteredAlerts.length === 0 && (
+        <div className="empty-state">
+          <h3>No matching alerts</h3>
+          <p>Try adjusting your search or filters.</p>
         </div>
       )}
     </div>
