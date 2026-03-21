@@ -18,8 +18,13 @@ import (
 	"github.com/argus-platform/argus/services/control-plane/internal/alerts"
 	"github.com/argus-platform/argus/services/control-plane/internal/audit"
 	"github.com/argus-platform/argus/services/control-plane/internal/auth"
+	"github.com/argus-platform/argus/services/control-plane/internal/catalog"
+	"github.com/argus-platform/argus/services/control-plane/internal/costgov"
 	"github.com/argus-platform/argus/services/control-plane/internal/dashboard"
+	"github.com/argus-platform/argus/services/control-plane/internal/dataquality"
 	"github.com/argus-platform/argus/services/control-plane/internal/policy"
+	"github.com/argus-platform/argus/services/control-plane/internal/slo"
+	"github.com/argus-platform/argus/services/control-plane/internal/trace"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -40,6 +45,26 @@ func main() {
 	policyEngine := policy.New()
 	jwtAuth := auth.New(os.Getenv("ARGUS_JWT_SECRET"))
 	dashHandler := dashboard.New(alertRouter, auditLog)
+
+	// Initialize observability module handlers
+	traceSvc := trace.NewService()
+	traceHandler := trace.NewHandler(traceSvc)
+
+	dqRepo := dataquality.NewRepository()
+	dqHandler := dataquality.NewHandler(dqRepo)
+
+	catalogRepo := catalog.NewRepository()
+	catalogHandler := catalog.NewHandler(catalogRepo)
+
+	costRepo := costgov.NewRepository()
+	costDetector := costgov.NewAnomalyDetector()
+	costHandler := costgov.NewHandler(costRepo, costDetector)
+
+	sloRepo := slo.NewRepository()
+	sloCalc := slo.NewCalculator(sloRepo)
+	sloHandler := slo.NewHandler(sloRepo, sloCalc)
+
+	auditHandler := audit.NewHandler(auditLog)
 
 	// gRPC server
 	grpcServer := grpc.NewServer(
@@ -67,6 +92,14 @@ func main() {
 
 	// Dashboard endpoints (alerts, audit)
 	dashHandler.RegisterRoutes(mux)
+
+	// Observability module routes
+	traceHandler.RegisterRoutes(mux)
+	dqHandler.RegisterRoutes(mux)
+	catalogHandler.RegisterRoutes(mux)
+	costHandler.RegisterRoutes(mux)
+	sloHandler.RegisterRoutes(mux)
+	auditHandler.RegisterRoutes(mux)
 
 	// Auth endpoint - generate tokens (dev mode)
 	mux.HandleFunc("/api/v1/auth/token", func(w http.ResponseWriter, r *http.Request) {

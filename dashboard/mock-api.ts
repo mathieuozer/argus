@@ -70,131 +70,239 @@ const mockAgents = [
 ];
 
 const mockTasks = [
-  {
-    id: 'task-001',
-    tenant_id: 'ministry-finance-tr',
-    agent_id: 'budget-reconciler',
-    status: 'completed',
-    input_hash: 'a1b2c3d4e5f6',
-    started_at: new Date(Date.now() - 3600000).toISOString(),
-    completed_at: new Date(Date.now() - 3000000).toISOString(),
-    cost_usd: 0.42,
-    tokens_used: 12450,
-  },
-  {
-    id: 'task-002',
-    tenant_id: 'ministry-finance-tr',
-    agent_id: 'doc-classifier',
-    status: 'running',
-    input_hash: 'b2c3d4e5f6a1',
-    started_at: new Date(Date.now() - 300000).toISOString(),
-    completed_at: null,
-    cost_usd: 0.18,
-    tokens_used: 5200,
-  },
-  {
-    id: 'task-003',
-    tenant_id: 'ministry-finance-tr',
-    agent_id: 'fraud-detector',
-    status: 'running',
-    input_hash: 'c3d4e5f6a1b2',
-    started_at: new Date(Date.now() - 180000).toISOString(),
-    completed_at: null,
-    cost_usd: 0.95,
-    tokens_used: 28000,
-  },
-  {
-    id: 'task-004',
-    tenant_id: 'ministry-finance-tr',
-    agent_id: 'report-generator',
-    status: 'pending',
-    input_hash: 'd4e5f6a1b2c3',
-    started_at: new Date(Date.now() - 60000).toISOString(),
-    completed_at: null,
-    cost_usd: 0.0,
-    tokens_used: 0,
-  },
-  {
-    id: 'task-005',
-    tenant_id: 'ministry-finance-tr',
-    agent_id: 'compliance-checker',
-    status: 'failed',
-    input_hash: 'e5f6a1b2c3d4',
-    started_at: new Date(Date.now() - 7200000).toISOString(),
-    completed_at: new Date(Date.now() - 6800000).toISOString(),
-    cost_usd: 1.23,
-    tokens_used: 35600,
-  },
-  {
-    id: 'task-006',
-    tenant_id: 'ministry-finance-tr',
-    agent_id: 'budget-reconciler',
-    status: 'awaiting_approval',
-    input_hash: 'f6a1b2c3d4e5',
-    started_at: new Date(Date.now() - 900000).toISOString(),
-    completed_at: null,
-    cost_usd: 0.67,
-    tokens_used: 19800,
-  },
+  { id: 'task-001', tenant_id: 'ministry-finance-tr', agent_id: 'budget-reconciler', status: 'completed', input_hash: 'a1b2c3d4e5f6', started_at: new Date(Date.now() - 3600000).toISOString(), completed_at: new Date(Date.now() - 3000000).toISOString(), cost_usd: 0.42, tokens_used: 12450 },
+  { id: 'task-002', tenant_id: 'ministry-finance-tr', agent_id: 'doc-classifier', status: 'running', input_hash: 'b2c3d4e5f6a1', started_at: new Date(Date.now() - 300000).toISOString(), completed_at: null, cost_usd: 0.18, tokens_used: 5200 },
+  { id: 'task-003', tenant_id: 'ministry-finance-tr', agent_id: 'fraud-detector', status: 'running', input_hash: 'c3d4e5f6a1b2', started_at: new Date(Date.now() - 180000).toISOString(), completed_at: null, cost_usd: 0.95, tokens_used: 28000 },
+  { id: 'task-004', tenant_id: 'ministry-finance-tr', agent_id: 'report-generator', status: 'pending', input_hash: 'd4e5f6a1b2c3', started_at: new Date(Date.now() - 60000).toISOString(), completed_at: null, cost_usd: 0.0, tokens_used: 0 },
+  { id: 'task-005', tenant_id: 'ministry-finance-tr', agent_id: 'compliance-checker', status: 'failed', input_hash: 'e5f6a1b2c3d4', started_at: new Date(Date.now() - 7200000).toISOString(), completed_at: new Date(Date.now() - 6800000).toISOString(), cost_usd: 1.23, tokens_used: 35600 },
+  { id: 'task-006', tenant_id: 'ministry-finance-tr', agent_id: 'budget-reconciler', status: 'awaiting_approval', input_hash: 'f6a1b2c3d4e5', started_at: new Date(Date.now() - 900000).toISOString(), completed_at: null, cost_usd: 0.67, tokens_used: 19800 },
 ];
 
 const mockAlerts = [
-  {
-    id: 'alert-001',
-    tenant_id: 'ministry-finance-tr',
-    agent_id: 'fraud-detector',
-    probability: 0.87,
-    estimated_ttf: 180,
-    precursor_type: 'latency_spike',
-    evidence: ['p99/p50 ratio: 4.2', 'sustained > 45s', 'memory usage: 89%'],
-    status: 'open',
-    created_at: new Date(Date.now() - 120000).toISOString(),
-  },
-  {
-    id: 'alert-002',
-    tenant_id: 'ministry-finance-tr',
-    agent_id: 'compliance-checker',
-    probability: 0.92,
-    estimated_ttf: 60,
-    precursor_type: 'token_escalation',
-    evidence: ['context fill: 85%', 'token velocity: 2.4x baseline', 'consecutive loops: 7'],
-    status: 'open',
-    created_at: new Date(Date.now() - 600000).toISOString(),
-  },
-  {
-    id: 'alert-003',
-    tenant_id: 'ministry-finance-tr',
-    agent_id: 'data-pipeline',
-    probability: 0.78,
-    estimated_ttf: 300,
-    precursor_type: 'retry_storm',
-    evidence: ['retry rate: 42%', 'error rate delta: +18%', 'upstream 503s: 12'],
-    status: 'acknowledged',
-    created_at: new Date(Date.now() - 1800000).toISOString(),
-  },
-  {
-    id: 'alert-004',
-    tenant_id: 'ministry-finance-tr',
-    agent_id: 'budget-reconciler',
-    probability: 0.65,
-    estimated_ttf: 900,
-    precursor_type: 'cost_runaway',
-    evidence: ['cost acceleration: 2.3x', 'token velocity: 1.8x', 'no useful output in 5min'],
-    status: 'resolved',
-    created_at: new Date(Date.now() - 7200000).toISOString(),
-  },
+  { id: 'alert-001', tenant_id: 'ministry-finance-tr', agent_id: 'fraud-detector', probability: 0.87, estimated_ttf: 180, precursor_type: 'latency_spike', evidence: ['p99/p50 ratio: 4.2', 'sustained > 45s', 'memory usage: 89%'], status: 'open', created_at: new Date(Date.now() - 120000).toISOString() },
+  { id: 'alert-002', tenant_id: 'ministry-finance-tr', agent_id: 'compliance-checker', probability: 0.92, estimated_ttf: 60, precursor_type: 'token_escalation', evidence: ['context fill: 85%', 'token velocity: 2.4x baseline', 'consecutive loops: 7'], status: 'open', created_at: new Date(Date.now() - 600000).toISOString() },
+  { id: 'alert-003', tenant_id: 'ministry-finance-tr', agent_id: 'data-pipeline', probability: 0.78, estimated_ttf: 300, precursor_type: 'retry_storm', evidence: ['retry rate: 42%', 'error rate delta: +18%', 'upstream 503s: 12'], status: 'acknowledged', created_at: new Date(Date.now() - 1800000).toISOString() },
+  { id: 'alert-004', tenant_id: 'ministry-finance-tr', agent_id: 'budget-reconciler', probability: 0.65, estimated_ttf: 900, precursor_type: 'cost_runaway', evidence: ['cost acceleration: 2.3x', 'token velocity: 1.8x', 'no useful output in 5min'], status: 'resolved', created_at: new Date(Date.now() - 7200000).toISOString() },
 ];
 
-const mockMetrics = {
-  total_agents: 6,
-  active_tasks: 3,
-  total_cost: 3.45,
-  alert_count: 3,
+const mockMetrics = { total_agents: 6, active_tasks: 3, total_cost: 3.45, alert_count: 3 };
+
+// ---- Mock Traces ----
+function generateMockTraces() {
+  const now = Date.now();
+  const agents = ['budget-reconciler', 'doc-classifier', 'fraud-detector', 'report-generator', 'compliance-checker'];
+  const ops = ['chain.run', 'llm.completion', 'retrieval.query', 'tool.call', 'embedding.create'];
+  return Array.from({ length: 10 }, (_, i) => ({
+    trace_id: `trace-${String(i + 1).padStart(4, '0')}-${crypto.randomUUID().slice(0, 8)}`,
+    root_operation: ops[i % ops.length],
+    agent_id: agents[i % agents.length],
+    total_spans: 3 + Math.floor(Math.random() * 8),
+    total_duration_ms: 200 + Math.floor(Math.random() * 2000),
+    has_errors: i === 2 || i === 7,
+    started_at: new Date(now - (10 - i) * 600000).toISOString(),
+  }));
+}
+
+function generateMockTraceDetail(traceId: string) {
+  const now = Date.now();
+  const errCode = traceId.includes('0003') || traceId.includes('0008') ? 'TIMEOUT' : null;
+  return {
+    trace_id: traceId,
+    root_span: {
+      span_id: 'span-root',
+      operation_name: 'chain.run',
+      duration_ms: 1200,
+      started_at: new Date(now - 60000).toISOString(),
+      agent_id: 'budget-reconciler',
+      attributes: { framework: 'langchain', task: 'budget_q4' },
+      error_code: null,
+      children: [
+        {
+          span_id: 'span-llm-1',
+          operation_name: 'llm.completion',
+          duration_ms: 800,
+          started_at: new Date(now - 59000).toISOString(),
+          agent_id: 'budget-reconciler',
+          attributes: { model: 'gpt-4', tokens: '1200', prompt_tokens: '400', completion_tokens: '800' },
+          error_code: null,
+          children: [],
+        },
+        {
+          span_id: 'span-tool-1',
+          operation_name: 'tool.call',
+          duration_ms: 350,
+          started_at: new Date(now - 58200).toISOString(),
+          agent_id: 'budget-reconciler',
+          attributes: { tool: 'budget_db.query', query_type: 'SELECT' },
+          error_code: errCode,
+          children: [
+            {
+              span_id: 'span-db-1',
+              operation_name: 'db.query',
+              duration_ms: 120,
+              started_at: new Date(now - 58100).toISOString(),
+              attributes: { 'db.name': 'finance', 'db.statement': 'SELECT * FROM budgets' },
+              error_code: null,
+              children: [],
+            },
+          ],
+        },
+        {
+          span_id: 'span-embed-1',
+          operation_name: 'embedding.create',
+          duration_ms: 50,
+          started_at: new Date(now - 57850).toISOString(),
+          attributes: { model: 'text-embedding-3-small', dimensions: '1536' },
+          error_code: null,
+          children: [],
+        },
+      ],
+    },
+    total_spans: 5,
+    total_duration_ms: 1200,
+    has_errors: errCode !== null,
+  };
+}
+
+// ---- Mock Data Quality ----
+const mockDQRules = [
+  { id: 'rule-001', agent_id: 'budget-reconciler', name: 'Output must have amount', type: 'schema', target: 'output', schema: { required: ['amount', 'currency', 'date'] }, severity: 'critical', enabled: true, created_at: new Date(Date.now() - 86400000 * 7).toISOString(), updated_at: new Date(Date.now() - 86400000).toISOString() },
+  { id: 'rule-002', agent_id: 'budget-reconciler', name: 'Amount in valid range', type: 'range', target: 'output', schema: { field: 'amount', min: 0, max: 1000000 }, severity: 'warning', enabled: true, created_at: new Date(Date.now() - 86400000 * 5).toISOString(), updated_at: new Date(Date.now() - 86400000 * 2).toISOString() },
+  { id: 'rule-003', agent_id: 'doc-classifier', name: 'Category must match pattern', type: 'regex', target: 'output', schema: { field: 'category', pattern: '^(finance|legal|hr|ops)$' }, severity: 'warning', enabled: true, created_at: new Date(Date.now() - 86400000 * 3).toISOString(), updated_at: new Date(Date.now() - 86400000 * 3).toISOString() },
+];
+
+const mockDQScores = [
+  { id: 'score-001', agent_id: 'budget-reconciler', completeness: 0.9800, conformance: 0.9500, consistency: 0.9200, freshness: 0.9900, overall: 0.9575, sample_size: 150, computed_at: new Date(Date.now() - 300000).toISOString() },
+  { id: 'score-002', agent_id: 'doc-classifier', completeness: 0.8800, conformance: 0.9200, consistency: 0.8500, freshness: 0.9500, overall: 0.9010, sample_size: 200, computed_at: new Date(Date.now() - 300000).toISOString() },
+  { id: 'score-003', agent_id: 'fraud-detector', completeness: 0.9900, conformance: 0.7800, consistency: 0.9100, freshness: 0.8500, overall: 0.8870, sample_size: 80, computed_at: new Date(Date.now() - 300000).toISOString() },
+  { id: 'score-004', agent_id: 'report-generator', completeness: 0.7500, conformance: 0.8200, consistency: 0.7000, freshness: 0.9800, overall: 0.8070, sample_size: 50, computed_at: new Date(Date.now() - 300000).toISOString() },
+];
+
+const mockDQViolations = [
+  { id: 'viol-001', rule_id: 'rule-001', rule_name: 'Output must have amount', agent_id: 'budget-reconciler', severity: 'critical', message: 'Missing required field: currency', occurred_at: new Date(Date.now() - 180000).toISOString() },
+  { id: 'viol-002', rule_id: 'rule-002', rule_name: 'Amount in valid range', agent_id: 'budget-reconciler', severity: 'warning', message: 'amount value -50.00 out of range [0, 1000000]', occurred_at: new Date(Date.now() - 360000).toISOString() },
+  { id: 'viol-003', rule_id: 'rule-003', rule_name: 'Category must match pattern', agent_id: 'doc-classifier', severity: 'warning', message: 'category "unknown" does not match pattern', occurred_at: new Date(Date.now() - 900000).toISOString() },
+];
+
+function generateDriftData() {
+  const now = Date.now();
+  return Array.from({ length: 12 }, (_, i) => ({
+    timestamp: new Date(now - (12 - i) * 3600000).toISOString(),
+    consistency: 0.95 - (i > 6 ? (i - 6) * 0.04 : 0) + Math.random() * 0.02,
+    baseline: 1.0,
+  }));
+}
+
+// ---- Mock Catalog ----
+const mockCatalogSources = [
+  { id: 'src-001', type: 'database', name: 'budget_db', identifier: 'postgres://budget-db:5432/finance', agents: ['budget-reconciler', 'report-generator'], access_types: ['read', 'write'], first_seen: new Date(Date.now() - 86400000 * 30).toISOString(), last_seen: new Date(Date.now() - 60000).toISOString(), span_count: 1243, tier: 2 },
+  { id: 'src-002', type: 'api', name: 'openai_api', identifier: 'https://api.openai.com/v1', agents: ['budget-reconciler', 'doc-classifier', 'fraud-detector', 'compliance-checker'], access_types: ['call'], first_seen: new Date(Date.now() - 86400000 * 30).toISOString(), last_seen: new Date(Date.now() - 30000).toISOString(), span_count: 4520, tier: 1 },
+  { id: 'src-003', type: 'storage', name: 'report_store', identifier: 's3://argus-reports-eu-west', agents: ['report-generator', 'budget-reconciler'], access_types: ['write', 'read'], first_seen: new Date(Date.now() - 86400000 * 20).toISOString(), last_seen: new Date(Date.now() - 120000).toISOString(), span_count: 567, tier: 2 },
+  { id: 'src-004', type: 'database', name: 'document_store', identifier: 'postgres://doc-db:5432/documents', agents: ['doc-classifier'], access_types: ['read'], first_seen: new Date(Date.now() - 86400000 * 15).toISOString(), last_seen: new Date(Date.now() - 300000).toISOString(), span_count: 890, tier: 2 },
+  { id: 'src-005', type: 'tool', name: 'pii_scrubber', identifier: 'pii_scrubber', agents: ['fraud-detector', 'compliance-checker'], access_types: ['call'], first_seen: new Date(Date.now() - 86400000 * 10).toISOString(), last_seen: new Date(Date.now() - 600000).toISOString(), span_count: 234, tier: 1 },
+  { id: 'src-006', type: 'database', name: 'transactions_db', identifier: 'postgres://txn-db:5432/transactions', agents: ['fraud-detector'], access_types: ['read'], first_seen: new Date(Date.now() - 86400000 * 25).toISOString(), last_seen: new Date(Date.now() - 45000).toISOString(), span_count: 3200, tier: 3 },
+];
+
+const mockLineageGraph = {
+  nodes: [
+    { id: 'budget-reconciler', type: 'agent' },
+    { id: 'doc-classifier', type: 'agent' },
+    { id: 'fraud-detector', type: 'agent' },
+    { id: 'report-generator', type: 'agent' },
+    { id: 'compliance-checker', type: 'agent' },
+    { id: 'budget_db', type: 'database' },
+    { id: 'document_store', type: 'database' },
+    { id: 'transactions_db', type: 'database' },
+    { id: 'report_store', type: 'storage' },
+    { id: 'openai_api', type: 'external_api' },
+    { id: 'pii_scrubber', type: 'tool' },
+  ],
+  edges: [
+    { source: 'budget_db', target: 'budget-reconciler', label: 'read', span_count: 800 },
+    { source: 'budget-reconciler', target: 'report_store', label: 'write', span_count: 120 },
+    { source: 'budget-reconciler', target: 'openai_api', label: 'call', span_count: 950 },
+    { source: 'document_store', target: 'doc-classifier', label: 'read', span_count: 890 },
+    { source: 'doc-classifier', target: 'openai_api', label: 'call', span_count: 1200 },
+    { source: 'transactions_db', target: 'fraud-detector', label: 'read', span_count: 3200 },
+    { source: 'fraud-detector', target: 'openai_api', label: 'call', span_count: 1500 },
+    { source: 'fraud-detector', target: 'pii_scrubber', label: 'call', span_count: 234 },
+    { source: 'budget_db', target: 'report-generator', label: 'read', span_count: 400 },
+    { source: 'report-generator', target: 'report_store', label: 'write', span_count: 300 },
+    { source: 'compliance-checker', target: 'openai_api', label: 'call', span_count: 870 },
+    { source: 'compliance-checker', target: 'pii_scrubber', label: 'call', span_count: 100 },
+  ],
 };
 
+const mockToolUsage = [
+  { tool: 'openai_api', agent_id: 'budget-reconciler', call_count: 950, avg_duration_ms: 420 },
+  { tool: 'openai_api', agent_id: 'doc-classifier', call_count: 1200, avg_duration_ms: 380 },
+  { tool: 'openai_api', agent_id: 'fraud-detector', call_count: 1500, avg_duration_ms: 510 },
+  { tool: 'pii_scrubber', agent_id: 'fraud-detector', call_count: 234, avg_duration_ms: 45 },
+  { tool: 'budget_db.query', agent_id: 'budget-reconciler', call_count: 800, avg_duration_ms: 120 },
+];
+
+// ---- Mock Costs ----
+const mockCostBreakdown = [
+  { group: 'budget-reconciler', cost_usd: 4.82, tokens_used: 142000, task_count: 45 },
+  { group: 'doc-classifier', cost_usd: 3.15, tokens_used: 98000, task_count: 62 },
+  { group: 'fraud-detector', cost_usd: 8.94, tokens_used: 265000, task_count: 38 },
+  { group: 'report-generator', cost_usd: 2.10, tokens_used: 62000, task_count: 15 },
+  { group: 'compliance-checker', cost_usd: 5.60, tokens_used: 180000, task_count: 28 },
+  { group: 'data-pipeline', cost_usd: 1.45, tokens_used: 42000, task_count: 20 },
+];
+
+function generateCostTrends() {
+  const now = Date.now();
+  return Array.from({ length: 14 }, (_, i) => ({
+    timestamp: new Date(now - (14 - i) * 86400000).toISOString(),
+    cost_usd: +(2 + Math.random() * 5 + i * 0.2).toFixed(2),
+    tokens_used: Math.floor(50000 + Math.random() * 80000 + i * 5000),
+  }));
+}
+
+const mockBudgets = [
+  { id: 'budget-001', agent_id: null, budget_usd: 100.00, spent_usd: 26.06, period: 'monthly', alert_threshold: 0.80, enabled: true, created_at: new Date(Date.now() - 86400000 * 15).toISOString() },
+  { id: 'budget-002', agent_id: 'fraud-detector', budget_usd: 30.00, spent_usd: 8.94, period: 'weekly', alert_threshold: 0.80, enabled: true, created_at: new Date(Date.now() - 86400000 * 10).toISOString() },
+  { id: 'budget-003', agent_id: 'budget-reconciler', budget_usd: 5.00, spent_usd: 4.82, period: 'daily', alert_threshold: 0.80, enabled: true, created_at: new Date(Date.now() - 86400000 * 5).toISOString() },
+];
+
+const mockCostAnomalies = [
+  { id: 'anom-001', agent_id: 'fraud-detector', expected_usd: 3.50, actual_usd: 8.94, ratio: 2.55, detected_at: new Date(Date.now() - 3600000).toISOString(), status: 'open' },
+  { id: 'anom-002', agent_id: 'compliance-checker', expected_usd: 2.00, actual_usd: 5.60, ratio: 2.80, detected_at: new Date(Date.now() - 7200000).toISOString(), status: 'acknowledged' },
+];
+
+// ---- Mock Audit ----
+const mockAuditEntries = [
+  { id: 'audit-001', tenant_id: 'ministry-finance-tr', actor: 'admin@ministry.gov.tr', action: 'agent.register', resource: 'agent/budget-reconciler', details: 'Registered v2.1.0', timestamp: new Date(Date.now() - 86400000).toISOString() },
+  { id: 'audit-002', tenant_id: 'ministry-finance-tr', actor: 'system', action: 'cert.rotate', resource: 'identity/budget-reconciler', details: 'Auto-rotated SVID', timestamp: new Date(Date.now() - 82800000).toISOString() },
+  { id: 'audit-003', tenant_id: 'ministry-finance-tr', actor: 'admin@ministry.gov.tr', action: 'policy.create', resource: 'policy/budget-access', details: 'Created budget access policy', timestamp: new Date(Date.now() - 72000000).toISOString() },
+  { id: 'audit-004', tenant_id: 'ministry-finance-tr', actor: 'system', action: 'agent.quarantine', resource: 'agent/data-pipeline', details: 'Quarantined due to retry storm', timestamp: new Date(Date.now() - 3600000).toISOString() },
+  { id: 'audit-005', tenant_id: 'ministry-finance-tr', actor: 'ops@ministry.gov.tr', action: 'alert.acknowledge', resource: 'alert/alert-003', details: 'Acknowledged retry_storm alert', timestamp: new Date(Date.now() - 1800000).toISOString() },
+  { id: 'audit-006', tenant_id: 'ministry-finance-tr', actor: 'system', action: 'cert.issue', resource: 'identity/fraud-detector', details: 'Issued SVID for v3.0.1', timestamp: new Date(Date.now() - 600000).toISOString() },
+  { id: 'audit-007', tenant_id: 'ministry-finance-tr', actor: 'admin@ministry.gov.tr', action: 'slo.create', resource: 'slo/slo-001', details: 'Created Availability SLO for budget-reconciler', timestamp: new Date(Date.now() - 43200000).toISOString() },
+  { id: 'audit-008', tenant_id: 'ministry-finance-tr', actor: 'system', action: 'budget.alert', resource: 'cost/budget-003', details: 'budget-reconciler daily budget at 96%', timestamp: new Date(Date.now() - 7200000).toISOString() },
+];
+
+// ---- Mock SLOs ----
+const mockSLOs = [
+  { id: 'slo-001', agent_id: 'budget-reconciler', name: 'Availability SLO', type: 'availability', target: 0.9950, window: '30d', current: 0.9980, budget_remaining: 0.72, status: 'met', enabled: true, created_at: new Date(Date.now() - 86400000 * 20).toISOString() },
+  { id: 'slo-002', agent_id: 'fraud-detector', name: 'Latency P99 SLO', type: 'latency_p99', target: 0.9900, window: '7d', current: 0.9750, budget_remaining: 0.25, status: 'at_risk', enabled: true, created_at: new Date(Date.now() - 86400000 * 15).toISOString() },
+  { id: 'slo-003', agent_id: 'doc-classifier', name: 'Error Rate SLO', type: 'error_rate', target: 0.9900, window: '30d', current: 0.9920, budget_remaining: 0.60, status: 'met', enabled: true, created_at: new Date(Date.now() - 86400000 * 10).toISOString() },
+  { id: 'slo-004', agent_id: 'compliance-checker', name: 'Availability SLO', type: 'availability', target: 0.9990, window: '30d', current: 0.9800, budget_remaining: -0.10, status: 'breached', enabled: true, created_at: new Date(Date.now() - 86400000 * 25).toISOString() },
+];
+
+function generateErrorBudget() {
+  const now = Date.now();
+  return Array.from({ length: 30 }, (_, i) => ({
+    timestamp: new Date(now - (30 - i) * 86400000).toISOString(),
+    remaining: Math.max(0, 1.0 - i * 0.012 - Math.random() * 0.02),
+  }));
+}
+
+// ---- Helpers ----
 function generateTimeSeries(points: number, base: number, variance: number, trend: number = 0) {
   const now = Date.now();
-  const interval = 5 * 60 * 1000; // 5 min intervals
+  const interval = 5 * 60 * 1000;
   return Array.from({ length: points }, (_, i) => ({
     timestamp: new Date(now - (points - 1 - i) * interval).toISOString(),
     value: Math.max(0, base + trend * i + (Math.random() - 0.5) * variance),
@@ -235,10 +343,7 @@ function generateAgentSpans(agentId: string) {
     started_at: new Date(now - (15 - i) * 30000).toISOString(),
     duration_ms: Math.floor(50 + Math.random() * 500),
     tier: (i % 3 === 0 ? 1 : i % 3 === 1 ? 2 : 1) as 1 | 2 | 3,
-    attributes: {
-      model: i % 5 === 0 ? 'gpt-4' : 'gpt-3.5-turbo',
-      tokens: String(Math.floor(100 + Math.random() * 2000)),
-    },
+    attributes: { model: i % 5 === 0 ? 'gpt-4' : 'gpt-3.5-turbo', tokens: String(Math.floor(100 + Math.random() * 2000)) },
     error_code: i === 7 ? 'TIMEOUT' : i === 12 ? 'RATE_LIMITED' : null,
   }));
 }
@@ -290,8 +395,7 @@ export function mockApiPlugin(): Plugin {
         // Agent spans: /agents/:id/spans
         const agentSpansMatch = url.match(/^\/agents\/([^/]+)\/spans$/);
         if (agentSpansMatch && req.method === 'GET') {
-          const spans = generateAgentSpans(agentSpansMatch[1]);
-          res.end(jsonResponse(spans, tenantId));
+          res.end(jsonResponse(generateAgentSpans(agentSpansMatch[1]), tenantId));
           return;
         }
 
@@ -321,6 +425,151 @@ export function mockApiPlugin(): Plugin {
           return;
         }
 
+        // ---- Traces ----
+        const traceDetailMatch = url.match(/^\/traces\/([^/?]+)$/);
+        if (traceDetailMatch && req.method === 'GET') {
+          res.end(jsonResponse(generateMockTraceDetail(traceDetailMatch[1]), tenantId));
+          return;
+        }
+        if (url.startsWith('/traces') && req.method === 'GET') {
+          res.end(jsonResponse(generateMockTraces(), tenantId));
+          return;
+        }
+
+        // ---- Data Quality ----
+        if (url.startsWith('/data-quality/drift/') && req.method === 'GET') {
+          res.end(jsonResponse(generateDriftData(), tenantId));
+          return;
+        }
+        if (url.startsWith('/data-quality/scores') && req.method === 'GET') {
+          res.end(jsonResponse(mockDQScores, tenantId));
+          return;
+        }
+        if (url.startsWith('/data-quality/violations') && req.method === 'GET') {
+          res.end(jsonResponse(mockDQViolations, tenantId));
+          return;
+        }
+        if (url.startsWith('/data-quality/rules') && req.method === 'GET') {
+          res.end(jsonResponse(mockDQRules, tenantId));
+          return;
+        }
+        if (url.startsWith('/data-quality/rules') && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+          req.on('end', () => {
+            const rule = JSON.parse(body);
+            rule.id = `rule-${String(mockDQRules.length + 1).padStart(3, '0')}`;
+            rule.created_at = new Date().toISOString();
+            rule.updated_at = new Date().toISOString();
+            mockDQRules.push(rule);
+            res.end(jsonResponse(rule, tenantId));
+          });
+          return;
+        }
+        const dqRuleDeleteMatch = url.match(/^\/data-quality\/rules\/([^/]+)$/);
+        if (dqRuleDeleteMatch && req.method === 'DELETE') {
+          const idx = mockDQRules.findIndex((r) => r.id === dqRuleDeleteMatch[1]);
+          if (idx >= 0) mockDQRules.splice(idx, 1);
+          res.end(jsonResponse({ deleted: true }, tenantId));
+          return;
+        }
+
+        // ---- Catalog ----
+        if (url.startsWith('/catalog/lineage/graph') && req.method === 'GET') {
+          res.end(jsonResponse(mockLineageGraph, tenantId));
+          return;
+        }
+        if (url.startsWith('/catalog/tools') && req.method === 'GET') {
+          res.end(jsonResponse(mockToolUsage, tenantId));
+          return;
+        }
+        const catalogAgentMatch = url.match(/^\/catalog\/sources\/([^/]+)$/);
+        if (catalogAgentMatch && req.method === 'GET') {
+          const agentSources = mockCatalogSources.filter((s) => s.agents.includes(catalogAgentMatch[1]));
+          res.end(jsonResponse(agentSources, tenantId));
+          return;
+        }
+        if (url.startsWith('/catalog/sources') && req.method === 'GET') {
+          res.end(jsonResponse(mockCatalogSources, tenantId));
+          return;
+        }
+
+        // ---- Costs ----
+        if (url.startsWith('/costs/breakdown') && req.method === 'GET') {
+          res.end(jsonResponse(mockCostBreakdown, tenantId));
+          return;
+        }
+        if (url.startsWith('/costs/trends') && req.method === 'GET') {
+          res.end(jsonResponse(generateCostTrends(), tenantId));
+          return;
+        }
+        if (url.startsWith('/costs/budgets') && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+          req.on('end', () => {
+            const budget = JSON.parse(body);
+            budget.id = `budget-${String(mockBudgets.length + 1).padStart(3, '0')}`;
+            budget.spent_usd = 0;
+            budget.created_at = new Date().toISOString();
+            mockBudgets.push(budget);
+            res.end(jsonResponse(budget, tenantId));
+          });
+          return;
+        }
+        if (url.startsWith('/costs/budgets') && req.method === 'GET') {
+          res.end(jsonResponse(mockBudgets, tenantId));
+          return;
+        }
+        if (url.startsWith('/costs/anomalies') && req.method === 'GET') {
+          res.end(jsonResponse(mockCostAnomalies, tenantId));
+          return;
+        }
+
+        // ---- Audit ----
+        if (url.startsWith('/audit') && req.method === 'GET') {
+          res.end(jsonResponse(mockAuditEntries, tenantId));
+          return;
+        }
+
+        // ---- SLOs ----
+        const sloBudgetMatch = url.match(/^\/slos\/([^/]+)\/budget$/);
+        if (sloBudgetMatch && req.method === 'GET') {
+          res.end(jsonResponse(generateErrorBudget(), tenantId));
+          return;
+        }
+        const sloDetailMatch = url.match(/^\/slos\/([^/]+)$/);
+        if (sloDetailMatch && req.method === 'GET') {
+          const slo = mockSLOs.find((s) => s.id === sloDetailMatch[1]);
+          res.end(jsonResponse(slo || null, tenantId));
+          return;
+        }
+        if (sloDetailMatch && req.method === 'DELETE') {
+          const idx = mockSLOs.findIndex((s) => s.id === sloDetailMatch[1]);
+          if (idx >= 0) mockSLOs.splice(idx, 1);
+          res.end(jsonResponse({ deleted: true }, tenantId));
+          return;
+        }
+        if (url.startsWith('/slos') && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+          req.on('end', () => {
+            const slo = JSON.parse(body);
+            slo.id = `slo-${String(mockSLOs.length + 1).padStart(3, '0')}`;
+            slo.current = slo.target + (Math.random() - 0.3) * 0.01;
+            slo.budget_remaining = 0.5 + Math.random() * 0.5;
+            slo.status = slo.current >= slo.target ? 'met' : 'at_risk';
+            slo.created_at = new Date().toISOString();
+            mockSLOs.push(slo);
+            res.end(jsonResponse(slo, tenantId));
+          });
+          return;
+        }
+        if (url.startsWith('/slos') && req.method === 'GET') {
+          res.end(jsonResponse(mockSLOs, tenantId));
+          return;
+        }
+
+        // ---- Existing ----
         if (url === '/agents') {
           res.end(jsonResponse(mockAgents, tenantId));
         } else if (url === '/tasks') {

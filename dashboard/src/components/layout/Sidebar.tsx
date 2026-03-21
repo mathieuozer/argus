@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
-const navItems = [
+import type { ReactNode } from 'react';
+
+interface NavItem {
+  path: string;
+  label: string;
+  icon: ReactNode;
+  section?: string;
+}
+
+const navItems: NavItem[] = [
   {
     path: '/agents',
     label: 'Agents',
@@ -11,17 +20,6 @@ const navItems = [
         <circle cx="9" cy="7" r="4" />
         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
-  },
-  {
-    path: '/metrics',
-    label: 'Metrics',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="18" y1="20" x2="18" y2="10" />
-        <line x1="12" y1="20" x2="12" y2="4" />
-        <line x1="6" y1="20" x2="6" y2="14" />
       </svg>
     ),
   },
@@ -50,6 +48,87 @@ const navItems = [
     ),
   },
   {
+    path: '/traces',
+    label: 'Traces',
+    section: 'Observability',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+    ),
+  },
+  {
+    path: '/data-quality',
+    label: 'Data Quality',
+    section: 'Observability',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+        <polyline points="22 4 12 14.01 9 11.01" />
+      </svg>
+    ),
+  },
+  {
+    path: '/catalog',
+    label: 'Data Catalog',
+    section: 'Observability',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <ellipse cx="12" cy="5" rx="9" ry="3" />
+        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+      </svg>
+    ),
+  },
+  {
+    path: '/costs',
+    label: 'Costs',
+    section: 'Observability',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="1" x2="12" y2="23" />
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+    ),
+  },
+  {
+    path: '/slos',
+    label: 'SLOs',
+    section: 'Observability',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 20V10" />
+        <path d="M18 20V4" />
+        <path d="M6 20v-4" />
+      </svg>
+    ),
+  },
+  {
+    path: '/audit',
+    label: 'Audit Log',
+    section: 'Observability',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+        <polyline points="10 9 9 9 8 9" />
+      </svg>
+    ),
+  },
+  {
+    path: '/metrics',
+    label: 'Metrics',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    ),
+  },
+  {
     path: '/settings',
     label: 'Settings',
     icon: (
@@ -63,6 +142,8 @@ const navItems = [
 
 function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+
+  let lastSection: string | undefined;
 
   return (
     <aside className={`sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
@@ -94,19 +175,30 @@ function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              `sidebar-nav-item ${isActive ? 'active' : ''}`
-            }
-            title={collapsed ? item.label : undefined}
-          >
-            {item.icon}
-            {!collapsed && <span>{item.label}</span>}
-          </NavLink>
-        ))}
+        {navItems.map((item) => {
+          const showSection = item.section && item.section !== lastSection;
+          if (item.section) lastSection = item.section;
+          else lastSection = undefined;
+
+          return (
+            <div key={item.path}>
+              {showSection && !collapsed && (
+                <div className="sidebar-section-label">{item.section}</div>
+              )}
+              {showSection && collapsed && <div className="sidebar-section-divider" />}
+              <NavLink
+                to={item.path}
+                className={({ isActive }) =>
+                  `sidebar-nav-item ${isActive ? 'active' : ''}`
+                }
+                title={collapsed ? item.label : undefined}
+              >
+                {item.icon}
+                {!collapsed && <span>{item.label}</span>}
+              </NavLink>
+            </div>
+          );
+        })}
       </nav>
 
       <div className="sidebar-footer">
