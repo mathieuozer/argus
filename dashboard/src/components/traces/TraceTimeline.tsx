@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { TraceSpan } from '../../types/trace';
 
 interface TraceTimelineProps {
@@ -16,13 +17,14 @@ function flattenSpans(span: TraceSpan, depth: number = 0): { span: TraceSpan; de
 }
 
 function TraceTimeline({ rootSpan, totalDuration, selectedSpanId, onSelectSpan }: TraceTimelineProps) {
+  const { t } = useTranslation();
   const flatSpans = flattenSpans(rootSpan);
   const rootStart = new Date(rootSpan.started_at).getTime();
 
   return (
     <div className="trace-timeline">
       <div className="trace-timeline-header">
-        <span className="trace-timeline-label">Operation</span>
+        <span className="trace-timeline-label">{t('traces.operation')}</span>
         <span className="trace-timeline-bar-header">
           <span>0ms</span>
           <span>{Math.round(totalDuration / 2)}ms</span>

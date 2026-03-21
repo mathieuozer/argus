@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   ResponsiveContainer,
   BarChart,
@@ -14,16 +15,18 @@ interface ToolUsageChartProps {
 }
 
 function ToolUsageChart({ data }: ToolUsageChartProps) {
-  const chartData = data.map((t) => ({
-    name: t.tool.length > 20 ? t.tool.slice(0, 18) + '..' : t.tool,
-    calls: t.call_count,
-    avgMs: t.avg_duration_ms,
+  const { t } = useTranslation();
+
+  const chartData = data.map((tl) => ({
+    name: tl.tool.length > 20 ? tl.tool.slice(0, 18) + '..' : tl.tool,
+    calls: tl.call_count,
+    avgMs: tl.avg_duration_ms,
   }));
 
   return (
     <div className="chart-card">
       <div className="chart-card-header">
-        <span className="chart-card-title">Tool / API Usage</span>
+        <span className="chart-card-title">{t('catalog.toolApiUsage')}</span>
       </div>
       <div className="chart-card-body">
         <ResponsiveContainer width="100%" height={200}>

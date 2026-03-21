@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { SLO } from '../../types/slo';
 import SLOStatusBadge from './SLOStatusBadge';
 
@@ -7,6 +8,7 @@ interface SLOCardProps {
 }
 
 function SLOCard({ slo, onClick }: SLOCardProps) {
+  const { t } = useTranslation();
   const budgetPct = slo.budget_remaining * 100;
   const budgetColor = budgetPct > 50
     ? 'var(--color-success)'
@@ -25,24 +27,24 @@ function SLOCard({ slo, onClick }: SLOCardProps) {
       </div>
       <div className="slo-metrics">
         <div className="slo-metric">
-          <span className="slo-metric-label">Target</span>
+          <span className="slo-metric-label">{t('slos.target')}</span>
           <span className="slo-metric-value">{(slo.target * 100).toFixed(2)}%</span>
         </div>
         <div className="slo-metric">
-          <span className="slo-metric-label">Current</span>
+          <span className="slo-metric-label">{t('slos.current')}</span>
           <span className="slo-metric-value" style={{ color: slo.current >= slo.target ? 'var(--color-success)' : 'var(--color-error)' }}>
             {(slo.current * 100).toFixed(2)}%
           </span>
         </div>
         <div className="slo-metric">
-          <span className="slo-metric-label">Window</span>
+          <span className="slo-metric-label">{t('slos.window')}</span>
           <span className="slo-metric-value">{slo.window}</span>
         </div>
       </div>
       <div className="slo-budget">
         <div className="slo-budget-header">
-          <span>Error Budget</span>
-          <span style={{ color: budgetColor }}>{budgetPct.toFixed(1)}% remaining</span>
+          <span>{t('slos.errorBudget')}</span>
+          <span style={{ color: budgetColor }}>{t('slos.remaining', { pct: budgetPct.toFixed(1) })}</span>
         </div>
         <div className="budget-bar-bg">
           <div

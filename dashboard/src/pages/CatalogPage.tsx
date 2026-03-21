@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCatalogStore } from '../stores/catalogStore';
 import SourceTable from '../components/catalog/SourceTable';
 import LineageGraph from '../components/catalog/LineageGraph';
@@ -7,6 +8,7 @@ import ToolUsageChart from '../components/catalog/ToolUsageChart';
 import type { CatalogSource } from '../types/catalog';
 
 function CatalogPage() {
+  const { t } = useTranslation();
   const { sources, lineage, tools, loading, error, fetchSources, fetchLineage, fetchTools } = useCatalogStore();
   const [selectedSource, setSelectedSource] = useState<CatalogSource | null>(null);
   const [activeTab, setActiveTab] = useState<'sources' | 'lineage' | 'tools'>('sources');
@@ -21,11 +23,11 @@ function CatalogPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <h2>Data Catalog</h2>
-          <p>Auto-discovered data sources, tools, and data lineage</p>
+          <h2>{t('catalog.title')}</h2>
+          <p>{t('catalog.subtitle')}</p>
         </div>
         <div className="page-header-actions">
-          <button className="btn" onClick={() => { fetchSources(); fetchLineage(); fetchTools(); }} disabled={loading}>Refresh</button>
+          <button className="btn" onClick={() => { fetchSources(); fetchLineage(); fetchTools(); }} disabled={loading}>{t('common.refresh')}</button>
         </div>
       </div>
 
@@ -33,20 +35,20 @@ function CatalogPage() {
 
       <div className="tab-bar">
         <button className={`tab ${activeTab === 'sources' ? 'active' : ''}`} onClick={() => setActiveTab('sources')}>
-          Sources ({sources.length})
+          {t('catalog.sources', { count: sources.length })}
         </button>
         <button className={`tab ${activeTab === 'lineage' ? 'active' : ''}`} onClick={() => setActiveTab('lineage')}>
-          Data Lineage
+          {t('catalog.dataLineage')}
         </button>
         <button className={`tab ${activeTab === 'tools' ? 'active' : ''}`} onClick={() => setActiveTab('tools')}>
-          Tool Usage
+          {t('catalog.toolUsage')}
         </button>
       </div>
 
       {loading && sources.length === 0 && (
         <div className="loading-container">
           <div className="loading-spinner" />
-          <span>Discovering data sources...</span>
+          <span>{t('catalog.discoveringSources')}</span>
         </div>
       )}
 

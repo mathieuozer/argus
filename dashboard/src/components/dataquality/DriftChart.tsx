@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -15,6 +16,8 @@ interface DriftChartProps {
 }
 
 function DriftChart({ data }: DriftChartProps) {
+  const { t } = useTranslation();
+
   const displayData = data.map((point) => ({
     time: new Date(point.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
     consistency: +(point.consistency * 100).toFixed(1),
@@ -24,7 +27,7 @@ function DriftChart({ data }: DriftChartProps) {
   return (
     <div className="chart-card">
       <div className="chart-card-header">
-        <span className="chart-card-title">Data Drift</span>
+        <span className="chart-card-title">{t('dataQuality.dataDrift')}</span>
       </div>
       <div className="chart-card-body">
         <ResponsiveContainer width="100%" height={200}>

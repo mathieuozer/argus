@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useTaskStore } from '../stores/taskStore';
 import type { TaskStatus } from '../types/task';
 import StatusBadge from '../components/agents/StatusBadge';
@@ -50,16 +51,17 @@ function getStatusIndicator(status: TaskStatus): string {
   }
 }
 
-const STATUS_OPTIONS = [
-  { label: 'Pending', value: 'pending' },
-  { label: 'Running', value: 'running' },
-  { label: 'Completed', value: 'completed' },
-  { label: 'Failed', value: 'failed' },
-  { label: 'Awaiting Approval', value: 'awaiting_approval' },
-];
-
 function TasksPage() {
+  const { t } = useTranslation();
   const { tasks, loading, error, fetchTasks } = useTaskStore();
+
+  const STATUS_OPTIONS = [
+    { label: t('tasks.statusOptions.pending'), value: 'pending' },
+    { label: t('tasks.statusOptions.running'), value: 'running' },
+    { label: t('tasks.statusOptions.completed'), value: 'completed' },
+    { label: t('tasks.statusOptions.failed'), value: 'failed' },
+    { label: t('tasks.statusOptions.awaitingApproval'), value: 'awaiting_approval' },
+  ];
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -81,8 +83,8 @@ function TasksPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <h2>Tasks</h2>
-          <p>View and manage orchestrated agent tasks</p>
+          <h2>{t('tasks.title')}</h2>
+          <p>{t('tasks.subtitle')}</p>
         </div>
         <div className="page-header-actions">
           <AutoRefreshToggle onRefresh={fetchTasks} />
@@ -91,7 +93,7 @@ function TasksPage() {
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
-            Refresh
+            {t('common.refresh')}
           </button>
         </div>
       </div>
@@ -100,9 +102,9 @@ function TasksPage() {
         <SearchFilter
           searchValue={search}
           onSearchChange={setSearch}
-          searchPlaceholder="Search by task ID or agent..."
+          searchPlaceholder={t('tasks.searchPlaceholder')}
           filters={[
-            { label: 'All Statuses', value: statusFilter, options: STATUS_OPTIONS, onChange: setStatusFilter },
+            { label: t('tasks.allStatuses'), value: statusFilter, options: STATUS_OPTIONS, onChange: setStatusFilter },
           ]}
         />
       )}
@@ -121,7 +123,7 @@ function TasksPage() {
       {loading && tasks.length === 0 && (
         <div className="loading-container">
           <div className="loading-spinner" />
-          <span>Loading tasks...</span>
+          <span>{t('tasks.loadingTasks')}</span>
         </div>
       )}
 
@@ -137,9 +139,9 @@ function TasksPage() {
               <line x1="3" y1="18" x2="3.01" y2="18" />
             </svg>
           </div>
-          <h3>No tasks yet</h3>
+          <h3>{t('tasks.noTasks')}</h3>
           <p>
-            Tasks will appear here when agents begin processing work through the orchestrator.
+            {t('tasks.noTasksDescription')}
           </p>
         </div>
       )}
@@ -149,13 +151,13 @@ function TasksPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>Task ID</th>
-                <th>Agent</th>
-                <th>Status</th>
-                <th>Cost</th>
-                <th>Tokens</th>
-                <th>Started</th>
-                <th>Duration</th>
+                <th>{t('tasks.taskId')}</th>
+                <th>{t('tasks.agent')}</th>
+                <th>{t('tasks.status')}</th>
+                <th>{t('tasks.cost')}</th>
+                <th>{t('tasks.tokens')}</th>
+                <th>{t('tasks.started')}</th>
+                <th>{t('tasks.duration')}</th>
               </tr>
             </thead>
             <tbody>
@@ -197,8 +199,8 @@ function TasksPage() {
 
       {tasks.length > 0 && filteredTasks.length === 0 && (
         <div className="empty-state">
-          <h3>No matching tasks</h3>
-          <p>Try adjusting your search or filters.</p>
+          <h3>{t('tasks.noMatching')}</h3>
+          <p>{t('tasks.noMatchingDescription')}</p>
         </div>
       )}
     </div>

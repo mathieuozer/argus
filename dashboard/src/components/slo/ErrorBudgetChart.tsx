@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -15,6 +16,8 @@ interface ErrorBudgetChartProps {
 }
 
 function ErrorBudgetChart({ data }: ErrorBudgetChartProps) {
+  const { t } = useTranslation();
+
   const chartData = data.map((point) => ({
     time: new Date(point.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
     remaining: +(point.remaining * 100).toFixed(1),
@@ -23,7 +26,7 @@ function ErrorBudgetChart({ data }: ErrorBudgetChartProps) {
   return (
     <div className="chart-card">
       <div className="chart-card-header">
-        <span className="chart-card-title">Error Budget Burn-down</span>
+        <span className="chart-card-title">{t('slos.errorBudgetBurndown')}</span>
       </div>
       <div className="chart-card-body">
         <ResponsiveContainer width="100%" height={200}>
@@ -45,7 +48,7 @@ function ErrorBudgetChart({ data }: ErrorBudgetChartProps) {
                 fontSize: '12px',
                 color: 'var(--color-text)',
               }}
-              formatter={(value) => [`${value}%`, 'Budget Remaining']}
+              formatter={(value) => [`${value}%`, t('slos.budgetRemaining')]}
             />
             <ReferenceLine y={20} stroke="var(--color-error)" strokeDasharray="5 5" />
             <Area type="monotone" dataKey="remaining" stroke="var(--color-primary)" fill="url(#budget-gradient)" strokeWidth={2} dot={false} />

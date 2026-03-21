@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { CostBudget } from '../../types/cost';
 
 interface BudgetCardProps {
@@ -5,6 +6,7 @@ interface BudgetCardProps {
 }
 
 function BudgetCard({ budget }: BudgetCardProps) {
+  const { t } = useTranslation();
   const pct = budget.budget_usd > 0 ? (budget.spent_usd / budget.budget_usd) * 100 : 0;
   const isOver = pct >= 100;
   const isWarning = pct >= budget.alert_threshold * 100;
@@ -18,7 +20,7 @@ function BudgetCard({ budget }: BudgetCardProps) {
   return (
     <div className="card budget-card">
       <div className="card-header">
-        <h4>{budget.agent_id || 'Tenant-wide'}</h4>
+        <h4>{budget.agent_id || t('costs.tenantWide')}</h4>
         <span className="badge">{budget.period}</span>
       </div>
       <div className="budget-gauge">
@@ -33,9 +35,9 @@ function BudgetCard({ budget }: BudgetCardProps) {
           />
         </div>
         <div className="budget-pct">
-          {pct.toFixed(1)}% used
-          {isWarning && !isOver && <span className="text-warning"> (alert threshold reached)</span>}
-          {isOver && <span className="text-error"> (over budget)</span>}
+          {t('costs.used', { pct: pct.toFixed(1) })}
+          {isWarning && !isOver && <span className="text-warning"> {t('costs.alertThresholdReached')}</span>}
+          {isOver && <span className="text-error"> {t('costs.overBudget')}</span>}
         </div>
       </div>
     </div>

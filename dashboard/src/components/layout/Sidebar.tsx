@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import UserMenu from '../auth/UserMenu';
+import LanguageSwitcher from '../shared/LanguageSwitcher';
 
 import type { ReactNode } from 'react';
 
 interface NavItem {
   path: string;
-  label: string;
+  labelKey: string;
   icon: ReactNode;
-  section?: string;
+  sectionKey?: string;
 }
 
 const navItems: NavItem[] = [
   {
     path: '/agents',
-    label: 'Agents',
+    labelKey: 'nav.agents',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -25,7 +28,7 @@ const navItems: NavItem[] = [
   },
   {
     path: '/tasks',
-    label: 'Tasks',
+    labelKey: 'nav.tasks',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="8" y1="6" x2="21" y2="6" />
@@ -39,7 +42,7 @@ const navItems: NavItem[] = [
   },
   {
     path: '/alerts',
-    label: 'Alerts',
+    labelKey: 'nav.alerts',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -49,8 +52,8 @@ const navItems: NavItem[] = [
   },
   {
     path: '/traces',
-    label: 'Traces',
-    section: 'Observability',
+    labelKey: 'nav.traces',
+    sectionKey: 'nav.observability',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
@@ -59,8 +62,8 @@ const navItems: NavItem[] = [
   },
   {
     path: '/data-quality',
-    label: 'Data Quality',
-    section: 'Observability',
+    labelKey: 'nav.dataQuality',
+    sectionKey: 'nav.observability',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -70,8 +73,8 @@ const navItems: NavItem[] = [
   },
   {
     path: '/catalog',
-    label: 'Data Catalog',
-    section: 'Observability',
+    labelKey: 'nav.catalog',
+    sectionKey: 'nav.observability',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <ellipse cx="12" cy="5" rx="9" ry="3" />
@@ -82,8 +85,8 @@ const navItems: NavItem[] = [
   },
   {
     path: '/costs',
-    label: 'Costs',
-    section: 'Observability',
+    labelKey: 'nav.costs',
+    sectionKey: 'nav.observability',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="12" y1="1" x2="12" y2="23" />
@@ -93,8 +96,8 @@ const navItems: NavItem[] = [
   },
   {
     path: '/slos',
-    label: 'SLOs',
-    section: 'Observability',
+    labelKey: 'nav.slos',
+    sectionKey: 'nav.observability',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 20V10" />
@@ -104,9 +107,20 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    path: '/evals',
+    labelKey: 'nav.evals',
+    sectionKey: 'nav.observability',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 11l3 3L22 4" />
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      </svg>
+    ),
+  },
+  {
     path: '/audit',
-    label: 'Audit Log',
-    section: 'Observability',
+    labelKey: 'nav.auditLog',
+    sectionKey: 'nav.observability',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -118,8 +132,59 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    path: '/prompts',
+    labelKey: 'nav.prompts',
+    sectionKey: 'nav.aiOps',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
+  },
+  {
+    path: '/rag',
+    labelKey: 'nav.rag',
+    sectionKey: 'nav.aiOps',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+    ),
+  },
+  {
+    path: '/feedback',
+    labelKey: 'nav.feedback',
+    sectionKey: 'nav.aiOps',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+      </svg>
+    ),
+  },
+  {
+    path: '/playground',
+    labelKey: 'nav.playground',
+    sectionKey: 'nav.aiOps',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="5 3 19 12 5 21 5 3" />
+      </svg>
+    ),
+  },
+  {
+    path: '/compliance',
+    labelKey: 'nav.compliance',
+    sectionKey: 'nav.governance',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      </svg>
+    ),
+  },
+  {
     path: '/metrics',
-    label: 'Metrics',
+    labelKey: 'nav.metrics',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="18" y1="20" x2="18" y2="10" />
@@ -130,7 +195,7 @@ const navItems: NavItem[] = [
   },
   {
     path: '/settings',
-    label: 'Settings',
+    labelKey: 'nav.settings',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />
@@ -142,8 +207,9 @@ const navItems: NavItem[] = [
 
 function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const { t } = useTranslation();
 
-  let lastSection: string | undefined;
+  let lastSectionKey: string | undefined;
 
   return (
     <aside className={`sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
@@ -167,8 +233,8 @@ function Sidebar() {
           </svg>
           {!collapsed && (
             <div>
-              <h1>Argus</h1>
-              <div className="sidebar-brand-subtitle">Agent Orchestration Platform</div>
+              <h1>{t('brand.name')}</h1>
+              <div className="sidebar-brand-subtitle">{t('brand.subtitle')}</div>
             </div>
           )}
         </div>
@@ -176,14 +242,14 @@ function Sidebar() {
 
       <nav className="sidebar-nav">
         {navItems.map((item) => {
-          const showSection = item.section && item.section !== lastSection;
-          if (item.section) lastSection = item.section;
-          else lastSection = undefined;
+          const showSection = item.sectionKey && item.sectionKey !== lastSectionKey;
+          if (item.sectionKey) lastSectionKey = item.sectionKey;
+          else lastSectionKey = undefined;
 
           return (
             <div key={item.path}>
               {showSection && !collapsed && (
-                <div className="sidebar-section-label">{item.section}</div>
+                <div className="sidebar-section-label">{t(item.sectionKey!)}</div>
               )}
               {showSection && collapsed && <div className="sidebar-section-divider" />}
               <NavLink
@@ -191,42 +257,47 @@ function Sidebar() {
                 className={({ isActive }) =>
                   `sidebar-nav-item ${isActive ? 'active' : ''}`
                 }
-                title={collapsed ? item.label : undefined}
+                title={collapsed ? t(item.labelKey) : undefined}
               >
                 {item.icon}
-                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && <span>{t(item.labelKey)}</span>}
               </NavLink>
             </div>
           );
         })}
       </nav>
 
+      {!collapsed && <UserMenu />}
+
       <div className="sidebar-footer">
         <div className="flex items-center justify-between">
-          {!collapsed && <span className="sidebar-version">Argus v0.1.0</span>}
-          <button
-            className="sidebar-toggle"
-            onClick={() => setCollapsed(!collapsed)}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{
-                transform: collapsed ? 'rotate(180deg)' : 'none',
-                transition: 'transform var(--transition-base)',
-              }}
+          {!collapsed && <span className="sidebar-version">{t('brand.version')}</span>}
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <button
+              className="sidebar-toggle"
+              onClick={() => setCollapsed(!collapsed)}
+              title={collapsed ? t('sidebar.expandSidebar') : t('sidebar.collapseSidebar')}
+              aria-label={collapsed ? t('sidebar.expandSidebar') : t('sidebar.collapseSidebar')}
             >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  transform: collapsed ? 'rotate(180deg)' : 'none',
+                  transition: 'transform var(--transition-base)',
+                }}
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </aside>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMetricsStore } from '../stores/metricsStore';
 import type { PlatformTimeSeries } from '../types/telemetry';
 import apiClient from '../utils/apiClient';
@@ -16,6 +17,7 @@ function formatCurrency(amount: number): string {
 }
 
 function MetricsPage() {
+  const { t } = useTranslation();
   const { metrics, loading, error, fetchMetrics } = useMetricsStore();
   const [timeSeries, setTimeSeries] = useState<PlatformTimeSeries | null>(null);
 
@@ -37,8 +39,8 @@ function MetricsPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <h2>Metrics</h2>
-          <p>Platform-wide statistics and resource usage</p>
+          <h2>{t('metrics.title')}</h2>
+          <p>{t('metrics.subtitle')}</p>
         </div>
         <div className="page-header-actions">
           <AutoRefreshToggle onRefresh={handleRefresh} />
@@ -47,7 +49,7 @@ function MetricsPage() {
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
-            Refresh
+            {t('common.refresh')}
           </button>
         </div>
       </div>
@@ -66,14 +68,14 @@ function MetricsPage() {
       {loading && !metrics && (
         <div className="loading-container">
           <div className="loading-spinner" />
-          <span>Loading metrics...</span>
+          <span>{t('metrics.loadingMetrics')}</span>
         </div>
       )}
 
       {metrics && (
         <div className="grid grid-stats mb-6">
           <StatCard
-            label="Total Agents"
+            label={t('metrics.totalAgents')}
             value={metrics.total_agents}
             icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -87,7 +89,7 @@ function MetricsPage() {
             iconColor="var(--color-primary)"
           />
           <StatCard
-            label="Active Tasks"
+            label={t('metrics.activeTasks')}
             value={metrics.active_tasks}
             icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -98,7 +100,7 @@ function MetricsPage() {
             iconColor="var(--color-success)"
           />
           <StatCard
-            label="Total Cost"
+            label={t('metrics.totalCost')}
             value={formatCurrency(metrics.total_cost)}
             icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -110,7 +112,7 @@ function MetricsPage() {
             iconColor="var(--color-warning)"
           />
           <StatCard
-            label="Active Alerts"
+            label={t('metrics.activeAlerts')}
             value={metrics.alert_count}
             icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -127,34 +129,34 @@ function MetricsPage() {
       {timeSeries && (
         <div className="grid grid-2 animate-fade-in">
           <TimeSeriesChart
-            title="Tasks Over Time"
+            title={t('metrics.tasksOverTime')}
             data={timeSeries.total_tasks}
             color="var(--color-primary)"
           />
           <TimeSeriesChart
-            title="Active Agents"
+            title={t('metrics.activeAgents')}
             data={timeSeries.active_agents}
             color="var(--color-success)"
           />
           <TimeSeriesChart
-            title="Cost Over Time"
+            title={t('metrics.costOverTime')}
             data={timeSeries.total_cost}
             color="var(--color-warning)"
             formatValue={(v) => `$${v.toFixed(2)}`}
           />
           <TimeSeriesChart
-            title="Alert Count"
+            title={t('metrics.alertCount')}
             data={timeSeries.alert_count}
             color="var(--color-danger)"
           />
           <TimeSeriesChart
-            title="Error Rate"
+            title={t('metrics.errorRate')}
             data={timeSeries.error_rate}
             color="var(--color-danger)"
             formatValue={(v) => `${(v * 100).toFixed(1)}%`}
           />
           <TimeSeriesChart
-            title="Average Latency"
+            title={t('metrics.avgLatency')}
             data={timeSeries.avg_latency}
             color="var(--color-info)"
             unit="ms"
@@ -171,9 +173,9 @@ function MetricsPage() {
               <line x1="6" y1="20" x2="6" y2="14" />
             </svg>
           </div>
-          <h3>No metrics available</h3>
+          <h3>{t('metrics.noMetrics')}</h3>
           <p>
-            Metrics will populate once agents begin reporting telemetry data.
+            {t('metrics.noMetricsDescription')}
           </p>
         </div>
       )}

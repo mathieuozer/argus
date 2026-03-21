@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
+import LoginPage from './pages/LoginPage';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 import AgentsPage from './pages/AgentsPage';
 import AgentDetailPage from './pages/AgentDetailPage';
 import MetricsPage from './pages/MetricsPage';
@@ -13,11 +15,24 @@ import CatalogPage from './pages/CatalogPage';
 import CostPage from './pages/CostPage';
 import AuditPage from './pages/AuditPage';
 import SLOPage from './pages/SLOPage';
+import EvalsPage from './pages/EvalsPage';
+import PromptsPage from './pages/PromptsPage';
+import RAGPage from './pages/RAGPage';
+import FeedbackPage from './pages/FeedbackPage';
+import PlaygroundPage from './pages/PlaygroundPage';
+import CompliancePage from './pages/CompliancePage';
 
 function App() {
   return (
     <Routes>
-      <Route element={<Layout />}>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
         <Route path="/" element={<Navigate to="/agents" replace />} />
         <Route path="/agents" element={<AgentsPage />} />
         <Route path="/agents/:agentId" element={<AgentDetailPage />} />
@@ -31,6 +46,12 @@ function App() {
         <Route path="/costs" element={<CostPage />} />
         <Route path="/audit" element={<AuditPage />} />
         <Route path="/slos" element={<SLOPage />} />
+        <Route path="/evals" element={<EvalsPage />} />
+        <Route path="/prompts" element={<PromptsPage />} />
+        <Route path="/rag" element={<RAGPage />} />
+        <Route path="/feedback" element={<FeedbackPage />} />
+        <Route path="/playground" element={<PlaygroundPage />} />
+        <Route path="/compliance" element={<CompliancePage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
     </Routes>

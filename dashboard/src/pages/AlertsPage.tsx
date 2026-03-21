@@ -1,25 +1,27 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAlertStore } from '../stores/alertStore';
 import AlertRow from '../components/alerts/AlertRow';
 import SearchFilter from '../components/shared/SearchFilter';
 import AutoRefreshToggle from '../components/shared/AutoRefreshToggle';
 
-const STATUS_OPTIONS = [
-  { label: 'Open', value: 'open' },
-  { label: 'Acknowledged', value: 'acknowledged' },
-  { label: 'Resolved', value: 'resolved' },
-  { label: 'False Positive', value: 'false_positive' },
-];
-
-const PRECURSOR_OPTIONS = [
-  { label: 'Latency Spike', value: 'latency_spike' },
-  { label: 'Token Escalation', value: 'token_escalation' },
-  { label: 'Retry Storm', value: 'retry_storm' },
-  { label: 'Cost Runaway', value: 'cost_runaway' },
-];
-
 function AlertsPage() {
+  const { t } = useTranslation();
   const { alerts, loading, error, fetchAlerts, updateAlertStatus } = useAlertStore();
+
+  const STATUS_OPTIONS = [
+    { label: t('alerts.statusOptions.open'), value: 'open' },
+    { label: t('alerts.statusOptions.acknowledged'), value: 'acknowledged' },
+    { label: t('alerts.statusOptions.resolved'), value: 'resolved' },
+    { label: t('alerts.statusOptions.falsePositive'), value: 'false_positive' },
+  ];
+
+  const PRECURSOR_OPTIONS = [
+    { label: t('alerts.precursorOptions.latencySpike'), value: 'latency_spike' },
+    { label: t('alerts.precursorOptions.tokenEscalation'), value: 'token_escalation' },
+    { label: t('alerts.precursorOptions.retryStorm'), value: 'retry_storm' },
+    { label: t('alerts.precursorOptions.costRunaway'), value: 'cost_runaway' },
+  ];
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [precursorFilter, setPrecursorFilter] = useState('');
@@ -43,8 +45,8 @@ function AlertsPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <h2>Predictive Alerts</h2>
-          <p>ML-powered failure predictions for monitored agents</p>
+          <h2>{t('alerts.title')}</h2>
+          <p>{t('alerts.subtitle')}</p>
         </div>
         <div className="page-header-actions">
           <AutoRefreshToggle onRefresh={fetchAlerts} />
@@ -53,7 +55,7 @@ function AlertsPage() {
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
-            Refresh
+            {t('common.refresh')}
           </button>
         </div>
       </div>
@@ -62,10 +64,10 @@ function AlertsPage() {
         <SearchFilter
           searchValue={search}
           onSearchChange={setSearch}
-          searchPlaceholder="Search by alert ID or agent..."
+          searchPlaceholder={t('alerts.searchPlaceholder')}
           filters={[
-            { label: 'All Statuses', value: statusFilter, options: STATUS_OPTIONS, onChange: setStatusFilter },
-            { label: 'All Precursors', value: precursorFilter, options: PRECURSOR_OPTIONS, onChange: setPrecursorFilter },
+            { label: t('alerts.allStatuses'), value: statusFilter, options: STATUS_OPTIONS, onChange: setStatusFilter },
+            { label: t('alerts.allPrecursors'), value: precursorFilter, options: PRECURSOR_OPTIONS, onChange: setPrecursorFilter },
           ]}
         />
       )}
@@ -84,7 +86,7 @@ function AlertsPage() {
       {loading && alerts.length === 0 && (
         <div className="loading-container">
           <div className="loading-spinner" />
-          <span>Loading alerts...</span>
+          <span>{t('alerts.loadingAlerts')}</span>
         </div>
       )}
 
@@ -96,9 +98,9 @@ function AlertsPage() {
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
           </div>
-          <h3>No active alerts</h3>
+          <h3>{t('alerts.noAlerts')}</h3>
           <p>
-            Predictive alerts will appear here when the system detects potential agent failures based on telemetry analysis.
+            {t('alerts.noAlertsDescription')}
           </p>
         </div>
       )}
@@ -108,14 +110,14 @@ function AlertsPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>Alert ID</th>
-                <th>Agent</th>
-                <th>Probability</th>
-                <th>Precursor</th>
-                <th>TTF</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Actions</th>
+                <th>{t('alerts.alertId')}</th>
+                <th>{t('alerts.agent')}</th>
+                <th>{t('alerts.probability')}</th>
+                <th>{t('alerts.precursor')}</th>
+                <th>{t('alerts.ttf')}</th>
+                <th>{t('alerts.status')}</th>
+                <th>{t('alerts.created')}</th>
+                <th>{t('alerts.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -129,8 +131,8 @@ function AlertsPage() {
 
       {alerts.length > 0 && filteredAlerts.length === 0 && (
         <div className="empty-state">
-          <h3>No matching alerts</h3>
-          <p>Try adjusting your search or filters.</p>
+          <h3>{t('alerts.noMatching')}</h3>
+          <p>{t('alerts.noMatchingDescription')}</p>
         </div>
       )}
     </div>

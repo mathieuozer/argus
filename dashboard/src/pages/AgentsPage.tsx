@@ -1,28 +1,30 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAgentStore } from '../stores/agentStore';
 import AgentCard from '../components/agents/AgentCard';
 import SearchFilter from '../components/shared/SearchFilter';
 import AutoRefreshToggle from '../components/shared/AutoRefreshToggle';
 
-const STATUS_OPTIONS = [
-  { label: 'Healthy', value: 'healthy' },
-  { label: 'Degraded', value: 'degraded' },
-  { label: 'Failed', value: 'failed' },
-  { label: 'Quarantined', value: 'quarantined' },
-  { label: 'Discovered', value: 'discovered' },
-];
-
-const FRAMEWORK_OPTIONS = [
-  { label: 'LangChain', value: 'langchain' },
-  { label: 'AutoGen', value: 'autogen' },
-  { label: 'CrewAI', value: 'crewai' },
-  { label: 'Custom', value: 'custom' },
-];
-
 function AgentsPage() {
+  const { t } = useTranslation();
   const { agents, loading, error, fetchAgents } = useAgentStore();
   const navigate = useNavigate();
+
+  const STATUS_OPTIONS = [
+    { label: t('statuses.healthy'), value: 'healthy' },
+    { label: t('statuses.degraded'), value: 'degraded' },
+    { label: t('statuses.failed'), value: 'failed' },
+    { label: t('statuses.quarantined'), value: 'quarantined' },
+    { label: t('statuses.discovered'), value: 'discovered' },
+  ];
+
+  const FRAMEWORK_OPTIONS = [
+    { label: t('frameworks.langchain'), value: 'langchain' },
+    { label: t('frameworks.autogen'), value: 'autogen' },
+    { label: t('frameworks.crewai'), value: 'crewai' },
+    { label: t('frameworks.custom'), value: 'custom' },
+  ];
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [frameworkFilter, setFrameworkFilter] = useState('');
@@ -47,8 +49,8 @@ function AgentsPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <h2>Agents</h2>
-          <p>Monitor and manage discovered AI agents</p>
+          <h2>{t('agents.title')}</h2>
+          <p>{t('agents.subtitle')}</p>
         </div>
         <div className="page-header-actions">
           <AutoRefreshToggle onRefresh={fetchAgents} />
@@ -57,7 +59,7 @@ function AgentsPage() {
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
-            Refresh
+            {t('common.refresh')}
           </button>
         </div>
       </div>
@@ -66,10 +68,10 @@ function AgentsPage() {
         <SearchFilter
           searchValue={search}
           onSearchChange={setSearch}
-          searchPlaceholder="Search agents by name, node, or capability..."
+          searchPlaceholder={t('agents.searchPlaceholder')}
           filters={[
-            { label: 'All Statuses', value: statusFilter, options: STATUS_OPTIONS, onChange: setStatusFilter },
-            { label: 'All Frameworks', value: frameworkFilter, options: FRAMEWORK_OPTIONS, onChange: setFrameworkFilter },
+            { label: t('agents.allStatuses'), value: statusFilter, options: STATUS_OPTIONS, onChange: setStatusFilter },
+            { label: t('agents.allFrameworks'), value: frameworkFilter, options: FRAMEWORK_OPTIONS, onChange: setFrameworkFilter },
           ]}
         />
       )}
@@ -88,7 +90,7 @@ function AgentsPage() {
       {loading && agents.length === 0 && (
         <div className="loading-container">
           <div className="loading-spinner" />
-          <span>Loading agents...</span>
+          <span>{t('agents.loadingAgents')}</span>
         </div>
       )}
 
@@ -102,9 +104,9 @@ function AgentsPage() {
               <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
           </div>
-          <h3>No agents discovered yet</h3>
+          <h3>{t('agents.noAgents')}</h3>
           <p>
-            Deploy a sidecar alongside your agent to automatically discover and register it with Argus.
+            {t('agents.noAgentsDescription')}
           </p>
         </div>
       )}
@@ -123,8 +125,8 @@ function AgentsPage() {
 
       {agents.length > 0 && filteredAgents.length === 0 && (
         <div className="empty-state">
-          <h3>No matching agents</h3>
-          <p>Try adjusting your search or filters.</p>
+          <h3>{t('agents.noMatching')}</h3>
+          <p>{t('agents.noMatchingDescription')}</p>
         </div>
       )}
     </div>

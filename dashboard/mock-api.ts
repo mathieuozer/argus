@@ -87,6 +87,8 @@ const mockAlerts = [
 
 const mockMetrics = { total_agents: 6, active_tasks: 3, total_cost: 3.45, alert_count: 3 };
 
+const mockComplianceReports: any[] = [];
+
 // ---- Mock Traces ----
 function generateMockTraces() {
   const now = Date.now();
@@ -299,6 +301,77 @@ function generateErrorBudget() {
   }));
 }
 
+// ---- Mock Evals ----
+const mockEvalSuites: any[] = [
+  {
+    id: 'suite-001',
+    tenant_id: 'ministry-finance-tr',
+    name: 'Budget Accuracy Tests',
+    description: 'Validates budget reconciliation accuracy',
+    agent_id: 'budget-reconciler',
+    test_cases: [
+      { id: 'tc-001', name: 'Simple addition', input: 'Calculate sum of 100 and 200', expected_output: '300', criteria: {}, max_latency_ms: 5000 },
+      { id: 'tc-002', name: 'Currency conversion', input: 'Convert 100 USD to EUR', expected_output: '~92 EUR', criteria: { accuracy: '0.95' }, max_latency_ms: 3000 },
+    ],
+    created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+    updated_at: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 'suite-002',
+    tenant_id: 'ministry-finance-tr',
+    name: 'Classification Quality',
+    description: 'Ensures document classifier returns valid categories',
+    agent_id: 'doc-classifier',
+    test_cases: [
+      { id: 'tc-003', name: 'Legal doc', input: 'Contract amendment for vendor ABC', expected_output: 'legal', criteria: {}, max_latency_ms: 2000 },
+      { id: 'tc-004', name: 'Finance doc', input: 'Q4 budget report', expected_output: 'finance', criteria: {}, max_latency_ms: 2000 },
+      { id: 'tc-005', name: 'HR doc', input: 'Employee onboarding form', expected_output: 'hr', criteria: {}, max_latency_ms: 2000 },
+    ],
+    created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+    updated_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+  },
+];
+
+const mockEvalRuns: any[] = [
+  {
+    id: 'run-001',
+    tenant_id: 'ministry-finance-tr',
+    suite_id: 'suite-001',
+    suite_name: 'Budget Accuracy Tests',
+    agent_id: 'budget-reconciler',
+    status: 'completed',
+    score: 0.85,
+    total_cases: 2,
+    passed_cases: 2,
+    failed_cases: 0,
+    results: [
+      { test_case_id: 'tc-001', test_case_name: 'Simple addition', status: 'passed', actual_output: '300', latency_ms: 180, score: 0.9, reason: '' },
+      { test_case_id: 'tc-002', test_case_name: 'Currency conversion', status: 'passed', actual_output: '92.15 EUR', latency_ms: 420, score: 0.8, reason: '' },
+    ],
+    started_at: new Date(Date.now() - 3600000).toISOString(),
+    completed_at: new Date(Date.now() - 3500000).toISOString(),
+  },
+  {
+    id: 'run-002',
+    tenant_id: 'ministry-finance-tr',
+    suite_id: 'suite-002',
+    suite_name: 'Classification Quality',
+    agent_id: 'doc-classifier',
+    status: 'completed',
+    score: 0.67,
+    total_cases: 3,
+    passed_cases: 2,
+    failed_cases: 1,
+    results: [
+      { test_case_id: 'tc-003', test_case_name: 'Legal doc', status: 'passed', actual_output: 'legal', latency_ms: 150, score: 1.0, reason: '' },
+      { test_case_id: 'tc-004', test_case_name: 'Finance doc', status: 'passed', actual_output: 'finance', latency_ms: 130, score: 1.0, reason: '' },
+      { test_case_id: 'tc-005', test_case_name: 'HR doc', status: 'failed', actual_output: 'ops', latency_ms: 140, score: 0.0, reason: 'Expected hr but got ops' },
+    ],
+    started_at: new Date(Date.now() - 7200000).toISOString(),
+    completed_at: new Date(Date.now() - 7100000).toISOString(),
+  },
+];
+
 // ---- Helpers ----
 function generateTimeSeries(points: number, base: number, variance: number, trend: number = 0) {
   const now = Date.now();
@@ -373,6 +446,67 @@ export function mockApiPlugin(): Plugin {
   return {
     name: 'mock-api',
     configureServer(server) {
+      // Auth endpoints — mounted before the /api/v1 middleware
+      server.middlewares.use('/api/v1/auth', (req, res, next) => {
+        res.setHeader('Content-Type', 'application/json');
+        const url = req.url || '';
+
+        if (url.startsWith('/login') && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+          req.on('end', () => {
+            const { username, tenantId } = JSON.parse(body);
+            const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTAwMSIsInRlbmFudCI6Im1vY2siLCJyb2xlIjoiYWRtaW4iLCJleHAiOjk5OTk5OTk5OTl9.mock';
+            const mockRefreshToken = 'rt_mock_' + crypto.randomUUID();
+            res.end(JSON.stringify({
+              data: {
+                token: mockToken,
+                refreshToken: mockRefreshToken,
+                user: {
+                  id: 'user-001',
+                  username: username || 'admin',
+                  email: `${username || 'admin'}@argus.local`,
+                  tenantId: tenantId || 'ministry-finance-tr',
+                  tenantName: tenantId ? tenantId.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Ministry Finance TR',
+                  role: 'admin',
+                },
+                expiresAt: new Date(Date.now() + 3600000).toISOString(),
+              },
+              meta: { tenant_id: tenantId || 'ministry-finance-tr', request_id: crypto.randomUUID() },
+            }));
+          });
+          return;
+        }
+
+        if (url.startsWith('/refresh') && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+          req.on('end', () => {
+            const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTAwMSIsInRlbmFudCI6Im1vY2siLCJyb2xlIjoiYWRtaW4iLCJleHAiOjk5OTk5OTk5OTl9.refreshed';
+            const mockRefreshToken = 'rt_mock_' + crypto.randomUUID();
+            res.end(JSON.stringify({
+              data: {
+                token: mockToken,
+                refreshToken: mockRefreshToken,
+                user: {
+                  id: 'user-001',
+                  username: 'admin',
+                  email: 'admin@argus.local',
+                  tenantId: 'ministry-finance-tr',
+                  tenantName: 'Ministry Finance TR',
+                  role: 'admin',
+                },
+                expiresAt: new Date(Date.now() + 3600000).toISOString(),
+              },
+              meta: { tenant_id: 'ministry-finance-tr', request_id: crypto.randomUUID() },
+            }));
+          });
+          return;
+        }
+
+        next();
+      });
+
       server.middlewares.use('/api/v1', (req, res, next) => {
         const tenantId = (req.headers['x-tenant-id'] as string) || 'default';
         res.setHeader('Content-Type', 'application/json');
@@ -566,6 +700,142 @@ export function mockApiPlugin(): Plugin {
         }
         if (url.startsWith('/slos') && req.method === 'GET') {
           res.end(jsonResponse(mockSLOs, tenantId));
+          return;
+        }
+
+        // ---- Evals ----
+        const evalRunDetailMatch = url.match(/^\/evals\/runs\/([^/]+)$/);
+        if (evalRunDetailMatch && req.method === 'GET') {
+          const run = mockEvalRuns.find((r: any) => r.id === evalRunDetailMatch[1]);
+          if (run) {
+            res.end(jsonResponse(run, tenantId));
+          } else {
+            res.statusCode = 404;
+            res.end(JSON.stringify({ error: { code: 'NOT_FOUND', message: 'Eval run not found' } }));
+          }
+          return;
+        }
+        if (url.startsWith('/evals/runs') && req.method === 'GET') {
+          res.end(jsonResponse(mockEvalRuns, tenantId));
+          return;
+        }
+        const evalSuiteRunMatch = url.match(/^\/evals\/suites\/([^/]+)\/run$/);
+        if (evalSuiteRunMatch && req.method === 'POST') {
+          const suite = mockEvalSuites.find((s: any) => s.id === evalSuiteRunMatch[1]);
+          if (suite) {
+            const run = {
+              id: `run-${String(mockEvalRuns.length + 1).padStart(3, '0')}`,
+              tenant_id: tenantId,
+              suite_id: suite.id,
+              suite_name: suite.name,
+              agent_id: suite.agent_id,
+              status: 'completed',
+              score: 0.85,
+              total_cases: suite.test_cases.length,
+              passed_cases: suite.test_cases.length,
+              failed_cases: 0,
+              results: suite.test_cases.map((tc: any) => ({
+                test_case_id: tc.id,
+                test_case_name: tc.name,
+                status: 'passed',
+                actual_output: 'Simulated: ' + tc.expected_output,
+                latency_ms: 150 + Math.floor(Math.random() * 300),
+                score: 0.85,
+                reason: '',
+              })),
+              started_at: new Date().toISOString(),
+              completed_at: new Date().toISOString(),
+            };
+            mockEvalRuns.unshift(run);
+            res.end(jsonResponse(run, tenantId));
+          } else {
+            res.statusCode = 404;
+            res.end(JSON.stringify({ error: { code: 'NOT_FOUND', message: 'Test suite not found' } }));
+          }
+          return;
+        }
+        const evalSuiteDetailMatch = url.match(/^\/evals\/suites\/([^/]+)$/);
+        if (evalSuiteDetailMatch && req.method === 'GET') {
+          const suite = mockEvalSuites.find((s: any) => s.id === evalSuiteDetailMatch[1]);
+          if (suite) {
+            res.end(jsonResponse(suite, tenantId));
+          } else {
+            res.statusCode = 404;
+            res.end(JSON.stringify({ error: { code: 'NOT_FOUND', message: 'Test suite not found' } }));
+          }
+          return;
+        }
+        if (url.startsWith('/evals/suites') && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+          req.on('end', () => {
+            const suite = JSON.parse(body);
+            suite.id = `suite-${String(mockEvalSuites.length + 1).padStart(3, '0')}`;
+            suite.tenant_id = tenantId;
+            suite.created_at = new Date().toISOString();
+            suite.updated_at = new Date().toISOString();
+            mockEvalSuites.push(suite);
+            res.end(jsonResponse(suite, tenantId));
+          });
+          return;
+        }
+        if (url.startsWith('/evals/suites') && req.method === 'GET') {
+          res.end(jsonResponse(mockEvalSuites, tenantId));
+          return;
+        }
+
+        // ---- Compliance Reports ----
+        const complianceReportDetailMatch = url.match(/^\/compliance\/reports\/([^/]+)$/);
+        if (complianceReportDetailMatch && req.method === 'GET') {
+          const report = mockComplianceReports.find((r) => r.id === complianceReportDetailMatch[1]);
+          if (report) {
+            res.end(jsonResponse(report, tenantId));
+          } else {
+            res.statusCode = 404;
+            res.end(JSON.stringify({ error: { code: 'NOT_FOUND', message: 'Report not found' } }));
+          }
+          return;
+        }
+        if (url.startsWith('/compliance/reports') && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+          req.on('end', () => {
+            const { profile_id, period_start, period_end } = JSON.parse(body);
+            const profiles: Record<string, string> = {
+              'gcc-sa': 'Saudi Arabia (NDMO)',
+              'gcc-ae': 'UAE (NESA)',
+              'gcc-qa': 'Qatar (NIA)',
+              'gov-tr': 'Turkey (KVKK)',
+              'eu-gdpr': 'EU GDPR',
+              'fedramp-moderate': 'FedRAMP Moderate',
+            };
+            const profileName = profiles[profile_id] || 'Unknown';
+            const report = {
+              id: `rpt-${String(mockComplianceReports.length + 1).padStart(3, '0')}`,
+              tenant_id: tenantId,
+              profile_id,
+              profile_name: profileName,
+              title: `${profileName} Compliance Report`,
+              status: 'completed',
+              format: 'json',
+              generated_at: new Date().toISOString(),
+              period_start: period_start || new Date(Date.now() - 30 * 86400000).toISOString(),
+              period_end: period_end || new Date().toISOString(),
+              sections: [
+                { title: 'Data Residency', status: 'compliant', description: 'All data stored within authorized regions', findings: ['No cross-region transfers detected'], evidence: ['Storage audit logs'] },
+                { title: 'PII Protection', status: 'compliant', description: 'PII scrubbing active', findings: ['PII scrubbing enabled'], evidence: ['PII scrubber config'] },
+                { title: 'Access Control', status: 'compliant', description: 'RBAC and tenant isolation enforced', findings: ['mTLS enforced'], evidence: ['RBAC policy config'] },
+                { title: 'Audit Trail', status: 'compliant', description: 'Immutable audit logs retained', findings: ['All actions logged'], evidence: ['Hash chain verification'] },
+              ],
+            };
+            mockComplianceReports.push(report);
+            res.statusCode = 201;
+            res.end(jsonResponse(report, tenantId));
+          });
+          return;
+        }
+        if (url.startsWith('/compliance/reports') && req.method === 'GET') {
+          res.end(jsonResponse(mockComplianceReports, tenantId));
           return;
         }
 

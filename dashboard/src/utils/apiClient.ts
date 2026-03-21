@@ -1,4 +1,5 @@
 import type { ApiResponse, ApiError } from '../types/api';
+import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = '/api/v1';
 
@@ -11,13 +12,25 @@ class ApiClient {
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE}${path}`;
+    const token = useAuthStore.getState().token;
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-Tenant-ID': this.tenantId,
       ...((options.headers as Record<string, string>) || {}),
     };
 
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(url, { ...options, headers });
+
+    if (response.status === 401) {
+      useAuthStore.getState().logout();
+      window.location.href = '/login';
+      throw new Error('Session expired');
+    }
 
     if (!response.ok) {
       const error: ApiError = await response.json();

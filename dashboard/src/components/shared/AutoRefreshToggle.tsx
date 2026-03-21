@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface AutoRefreshToggleProps {
   onRefresh: () => void;
@@ -6,6 +7,7 @@ interface AutoRefreshToggleProps {
 }
 
 function AutoRefreshToggle({ onRefresh, intervalMs = 10000 }: AutoRefreshToggleProps) {
+  const { t } = useTranslation();
   const [enabled, setEnabled] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -22,7 +24,7 @@ function AutoRefreshToggle({ onRefresh, intervalMs = 10000 }: AutoRefreshToggleP
     <button
       className={`btn btn-sm ${enabled ? 'btn-primary' : ''}`}
       onClick={() => setEnabled(!enabled)}
-      title={enabled ? 'Disable auto-refresh' : 'Enable auto-refresh (10s)'}
+      title={enabled ? t('autoRefresh.disableAutoRefresh') : t('autoRefresh.enableAutoRefresh')}
     >
       <svg
         width="12"
@@ -38,7 +40,7 @@ function AutoRefreshToggle({ onRefresh, intervalMs = 10000 }: AutoRefreshToggleP
         <polyline points="23 4 23 10 17 10" />
         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
       </svg>
-      {enabled ? 'Live' : 'Auto'}
+      {enabled ? t('common.live') : t('common.auto')}
     </button>
   );
 }

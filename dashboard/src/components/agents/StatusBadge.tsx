@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { AgentStatus } from '../../types/agent';
 import type { TaskStatus } from '../../types/task';
 import type { AlertStatus } from '../../types/alert';
@@ -36,14 +37,30 @@ function getStatusClass(status: BadgeStatus): string {
   }
 }
 
-function formatStatusLabel(status: BadgeStatus): string {
-  return status.replace(/_/g, ' ');
-}
+const STATUS_KEY_MAP: Record<string, string> = {
+  healthy: 'statuses.healthy',
+  degraded: 'statuses.degraded',
+  failed: 'statuses.failed',
+  quarantined: 'statuses.quarantined',
+  discovered: 'statuses.discovered',
+  pending: 'statuses.pending',
+  running: 'statuses.running',
+  completed: 'statuses.completed',
+  awaiting_approval: 'statuses.awaitingApproval',
+  open: 'statuses.open',
+  acknowledged: 'statuses.acknowledged',
+  resolved: 'statuses.resolved',
+  false_positive: 'statuses.falsePositive',
+};
 
 function StatusBadge({ status }: StatusBadgeProps) {
+  const { t } = useTranslation();
+  const labelKey = STATUS_KEY_MAP[status];
+  const label = labelKey ? t(labelKey) : status.replace(/_/g, ' ');
+
   return (
     <span className={`badge ${getStatusClass(status)}`}>
-      {formatStatusLabel(status)}
+      {label}
     </span>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { AgentDetail } from '../types/agent';
 import type { AgentTimeSeries, TelemetrySpan } from '../types/telemetry';
 import type { Task } from '../types/task';
@@ -43,6 +44,7 @@ function formatTimestamp(iso: string): string {
 }
 
 function AgentDetailPage() {
+  const { t } = useTranslation();
   const { agentId } = useParams<{ agentId: string }>();
   const navigate = useNavigate();
   const [agent, setAgent] = useState<AgentDetail | null>(null);
@@ -86,7 +88,7 @@ function AgentDetailPage() {
     return (
       <div className="loading-container">
         <div className="loading-spinner" />
-        <span>Loading agent details...</span>
+        <span>{t('agents.loadingDetails')}</span>
       </div>
     );
   }
@@ -100,9 +102,9 @@ function AgentDetailPage() {
             <line x1="15" y1="9" x2="9" y2="15" />
             <line x1="9" y1="9" x2="15" y2="15" />
           </svg>
-          {error || 'Agent not found'}
+          {error || t('agents.agentNotFound')}
         </div>
-        <button className="btn" onClick={() => navigate('/agents')}>Back to Agents</button>
+        <button className="btn" onClick={() => navigate('/agents')}>{t('agents.backToAgents')}</button>
       </div>
     );
   }
@@ -137,37 +139,37 @@ function AgentDetailPage() {
       <div className="grid grid-stats mb-6">
         <div className="stat-card animate-fade-in">
           <div className="stat-card-content">
-            <div className="stat-card-label">Tasks Completed</div>
+            <div className="stat-card-label">{t('agents.tasksCompleted')}</div>
             <div className="stat-card-value">{agent.tasks_completed}</div>
           </div>
         </div>
         <div className="stat-card animate-fade-in">
           <div className="stat-card-content">
-            <div className="stat-card-label">Tasks Failed</div>
+            <div className="stat-card-label">{t('agents.tasksFailed')}</div>
             <div className="stat-card-value" style={{ color: agent.tasks_failed > 0 ? 'var(--color-danger)' : undefined }}>{agent.tasks_failed}</div>
           </div>
         </div>
         <div className="stat-card animate-fade-in">
           <div className="stat-card-content">
-            <div className="stat-card-label">Total Cost</div>
+            <div className="stat-card-label">{t('agents.totalCost')}</div>
             <div className="stat-card-value">{formatCost(agent.total_cost_usd)}</div>
           </div>
         </div>
         <div className="stat-card animate-fade-in">
           <div className="stat-card-content">
-            <div className="stat-card-label">Total Tokens</div>
+            <div className="stat-card-label">{t('agents.totalTokens')}</div>
             <div className="stat-card-value">{formatTokens(agent.total_tokens)}</div>
           </div>
         </div>
         <div className="stat-card animate-fade-in">
           <div className="stat-card-content">
-            <div className="stat-card-label">Avg Latency</div>
+            <div className="stat-card-label">{t('agents.avgLatency')}</div>
             <div className="stat-card-value">{formatDuration(agent.avg_latency_ms)}</div>
           </div>
         </div>
         <div className="stat-card animate-fade-in">
           <div className="stat-card-content">
-            <div className="stat-card-label">Uptime</div>
+            <div className="stat-card-label">{t('agents.uptime')}</div>
             <div className="stat-card-value" style={{ color: agent.uptime_pct >= 99 ? 'var(--color-success)' : agent.uptime_pct >= 95 ? 'var(--color-warning)' : 'var(--color-danger)' }}>{formatUptime(agent.uptime_pct)}</div>
           </div>
         </div>
@@ -181,7 +183,7 @@ function AgentDetailPage() {
             className={`tab-item ${activeTab === tab ? 'tab-item-active' : ''}`}
             onClick={() => setActiveTab(tab)}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {t(`agents.${tab}`)}
             {tab === 'alerts' && alerts.length > 0 && (
               <span className="badge badge-danger" style={{ marginLeft: '6px', fontSize: '10px', padding: '1px 5px' }}>
                 {alerts.filter((a) => a.status === 'open').length}
@@ -194,25 +196,25 @@ function AgentDetailPage() {
       {/* Tab content */}
       {activeTab === 'overview' && timeSeries && (
         <div className="grid grid-2 animate-fade-in">
-          <TimeSeriesChart title="Latency P50" data={timeSeries.latency_p50} color="var(--color-primary)" unit="ms" />
-          <TimeSeriesChart title="Latency P99" data={timeSeries.latency_p99} color="var(--color-warning)" unit="ms" />
-          <TimeSeriesChart title="Token Rate" data={timeSeries.token_rate} color="var(--color-info)" unit="/s" />
-          <TimeSeriesChart title="Error Rate" data={timeSeries.error_rate} color="var(--color-danger)" formatValue={(v) => `${(v * 100).toFixed(1)}%`} />
-          <TimeSeriesChart title="Cost per Task" data={timeSeries.cost} color="var(--color-success)" formatValue={(v) => `$${v.toFixed(3)}`} />
+          <TimeSeriesChart title={t('agentDetail.latencyP50')} data={timeSeries.latency_p50} color="var(--color-primary)" unit="ms" />
+          <TimeSeriesChart title={t('agentDetail.latencyP99')} data={timeSeries.latency_p99} color="var(--color-warning)" unit="ms" />
+          <TimeSeriesChart title={t('agentDetail.tokenRate')} data={timeSeries.token_rate} color="var(--color-info)" unit="/s" />
+          <TimeSeriesChart title={t('agentDetail.errorRate')} data={timeSeries.error_rate} color="var(--color-danger)" formatValue={(v) => `${(v * 100).toFixed(1)}%`} />
+          <TimeSeriesChart title={t('agentDetail.costPerTask')} data={timeSeries.cost} color="var(--color-success)" formatValue={(v) => `$${v.toFixed(3)}`} />
           <div className="card">
             <div className="card-header">
-              <span className="card-title">Agent Identity</span>
+              <span className="card-title">{t('agents.agentIdentity')}</span>
             </div>
             <div className="detail-row">
-              <span className="detail-label">SPIFFE ID</span>
+              <span className="detail-label">{t('agents.spiffeId')}</span>
               <span className="detail-value text-mono text-sm truncate" style={{ maxWidth: '300px' }}>{agent.svid_uri}</span>
             </div>
             <div className="detail-row">
-              <span className="detail-label">Node</span>
+              <span className="detail-label">{t('agents.node')}</span>
               <span className="detail-value text-mono text-sm">{agent.node_id}</span>
             </div>
             <div className="detail-row">
-              <span className="detail-label">Framework</span>
+              <span className="detail-label">{t('agents.framework')}</span>
               <span className="detail-value">{agent.framework}</span>
             </div>
             <div className="detail-row">
@@ -220,7 +222,7 @@ function AgentDetailPage() {
               <span className="detail-value">v{agent.version}</span>
             </div>
             <div style={{ marginTop: 'var(--space-3)' }}>
-              <span className="detail-label" style={{ marginBottom: 'var(--space-2)', display: 'block' }}>Capabilities</span>
+              <span className="detail-label" style={{ marginBottom: 'var(--space-2)', display: 'block' }}>{t('agents.capabilities')}</span>
               <div className="tag-list">
                 {agent.capabilities.map((cap) => (
                   <span key={cap} className="tag">{cap}</span>
@@ -236,13 +238,13 @@ function AgentDetailPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>Span ID</th>
-                <th>Operation</th>
-                <th>Task</th>
-                <th>Duration</th>
-                <th>Tier</th>
-                <th>Started</th>
-                <th>Status</th>
+                <th>{t('agentDetail.spanId')}</th>
+                <th>{t('agentDetail.operation')}</th>
+                <th>{t('agentDetail.task')}</th>
+                <th>{t('agentDetail.duration')}</th>
+                <th>{t('agentDetail.tier')}</th>
+                <th>{t('agentDetail.started')}</th>
+                <th>{t('common.status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -272,17 +274,17 @@ function AgentDetailPage() {
         <div className="table-container animate-fade-in">
           {tasks.length === 0 ? (
             <div className="empty-state" style={{ border: 'none' }}>
-              <h3>No tasks for this agent</h3>
+              <h3>{t('agentDetail.noTasks')}</h3>
             </div>
           ) : (
             <table className="table">
               <thead>
                 <tr>
-                  <th>Task ID</th>
-                  <th>Status</th>
-                  <th>Cost</th>
-                  <th>Tokens</th>
-                  <th>Started</th>
+                  <th>{t('agentDetail.taskId')}</th>
+                  <th>{t('common.status')}</th>
+                  <th>{t('agentDetail.cost')}</th>
+                  <th>{t('agentDetail.tokens')}</th>
+                  <th>{t('agentDetail.started')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -305,19 +307,19 @@ function AgentDetailPage() {
         <div className="table-container animate-fade-in">
           {alerts.length === 0 ? (
             <div className="empty-state" style={{ border: 'none' }}>
-              <h3>No alerts for this agent</h3>
-              <p>This agent has no predictive failure alerts.</p>
+              <h3>{t('agentDetail.noAlerts')}</h3>
+              <p>{t('agentDetail.noAlertsDescription')}</p>
             </div>
           ) : (
             <table className="table">
               <thead>
                 <tr>
-                  <th>Alert ID</th>
-                  <th>Probability</th>
-                  <th>Precursor</th>
-                  <th>TTF</th>
-                  <th>Status</th>
-                  <th>Created</th>
+                  <th>{t('agentDetail.alertId')}</th>
+                  <th>{t('agentDetail.probability')}</th>
+                  <th>{t('agentDetail.precursor')}</th>
+                  <th>{t('agentDetail.ttf')}</th>
+                  <th>{t('common.status')}</th>
+                  <th>{t('agentDetail.created')}</th>
                 </tr>
               </thead>
               <tbody>

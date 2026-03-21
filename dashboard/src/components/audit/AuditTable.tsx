@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { AuditEntry } from '../../types/audit';
 
 interface AuditTableProps {
@@ -5,8 +6,10 @@ interface AuditTableProps {
 }
 
 function AuditTable({ entries }: AuditTableProps) {
+  const { t } = useTranslation();
+
   if (entries.length === 0) {
-    return <p className="text-muted">No audit entries found.</p>;
+    return <p className="text-muted">{t('audit.noEntriesFound')}</p>;
   }
 
   return (
@@ -14,11 +17,11 @@ function AuditTable({ entries }: AuditTableProps) {
       <table className="table">
         <thead>
           <tr>
-            <th>Timestamp</th>
-            <th>Actor</th>
-            <th>Action</th>
-            <th>Resource</th>
-            <th>Details</th>
+            <th>{t('audit.timestamp')}</th>
+            <th>{t('audit.actor')}</th>
+            <th>{t('audit.action')}</th>
+            <th>{t('audit.resource')}</th>
+            <th>{t('audit.details')}</th>
           </tr>
         </thead>
         <tbody>

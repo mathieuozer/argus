@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PredictiveAlert, AlertStatus } from '../../types/alert';
 import StatusBadge from '../agents/StatusBadge';
 
@@ -58,6 +59,7 @@ function formatTimestamp(isoString: string): string {
 }
 
 function AlertRow({ alert, onUpdateStatus }: AlertRowProps) {
+  const { t } = useTranslation();
   const [showEvidence, setShowEvidence] = useState(false);
   const probabilityPct = (alert.probability * 100).toFixed(0);
   const probabilityColor = getProbabilityColor(alert.probability);
@@ -101,16 +103,16 @@ function AlertRow({ alert, onUpdateStatus }: AlertRowProps) {
                 className="btn btn-sm"
                 onClick={() => setShowEvidence(!showEvidence)}
               >
-                {showEvidence ? 'Hide' : 'Evidence'}
+                {showEvidence ? t('alerts.hide') : t('alerts.evidence')}
               </button>
             )}
             {onUpdateStatus && canAcknowledge && (
               <button
                 className="btn btn-sm"
                 onClick={() => onUpdateStatus(alert.id, 'acknowledged')}
-                title="Acknowledge alert"
+                title={t('alerts.acknowledgeAlert')}
               >
-                Ack
+                {t('alerts.ack')}
               </button>
             )}
             {onUpdateStatus && canResolve && (
@@ -118,9 +120,9 @@ function AlertRow({ alert, onUpdateStatus }: AlertRowProps) {
                 className="btn btn-sm"
                 style={{ color: 'var(--color-success)' }}
                 onClick={() => onUpdateStatus(alert.id, 'resolved')}
-                title="Mark as resolved"
+                title={t('alerts.markResolved')}
               >
-                Resolve
+                {t('alerts.resolve')}
               </button>
             )}
             {onUpdateStatus && canMarkFalsePositive && (
@@ -128,9 +130,9 @@ function AlertRow({ alert, onUpdateStatus }: AlertRowProps) {
                 className="btn btn-sm"
                 style={{ color: 'var(--color-text-muted)' }}
                 onClick={() => onUpdateStatus(alert.id, 'false_positive')}
-                title="Mark as false positive"
+                title={t('alerts.markFalsePositive')}
               >
-                FP
+                {t('alerts.falsePositive')}
               </button>
             )}
           </div>
@@ -148,7 +150,7 @@ function AlertRow({ alert, onUpdateStatus }: AlertRowProps) {
               }}
             >
               <span className="text-sm font-medium text-muted" style={{ display: 'block', marginBottom: 'var(--space-2)' }}>
-                Evidence Points
+                {t('alerts.evidencePoints')}
               </span>
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
                 {alert.evidence.map((item, index) => (

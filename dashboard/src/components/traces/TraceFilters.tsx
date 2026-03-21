@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import TimeRangePicker, { type TimeRange } from '../shared/TimeRangePicker';
 
 interface TraceFiltersProps {
@@ -17,13 +18,15 @@ function TraceFilters({
   timeRange,
   onTimeRangeChange,
 }: TraceFiltersProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="trace-filters">
       <div className="filter-group">
         <input
           type="text"
           className="filter-input"
-          placeholder="Filter by agent ID..."
+          placeholder={t('traces.filterByAgent')}
           value={agentFilter}
           onChange={(e) => onAgentFilterChange(e.target.value)}
         />
@@ -32,9 +35,9 @@ function TraceFilters({
           value={statusFilter}
           onChange={(e) => onStatusFilterChange(e.target.value)}
         >
-          <option value="">All Traces</option>
-          <option value="error">With Errors</option>
-          <option value="success">Successful</option>
+          <option value="">{t('traces.allTraces')}</option>
+          <option value="error">{t('traces.withErrors')}</option>
+          <option value="success">{t('traces.successful')}</option>
         </select>
       </div>
       <TimeRangePicker value={timeRange} onChange={onTimeRangeChange} />

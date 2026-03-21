@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { CatalogSource } from '../../types/catalog';
 
 interface SourceTableProps {
@@ -16,18 +17,20 @@ function getTypeIcon(type: string): string {
 }
 
 function SourceTable({ sources, onSelect }: SourceTableProps) {
+  const { t } = useTranslation();
+
   return (
     <table className="table">
       <thead>
         <tr>
-          <th>Type</th>
-          <th>Name</th>
-          <th>Identifier</th>
-          <th>Agents</th>
-          <th>Access</th>
-          <th>Tier</th>
-          <th>Spans</th>
-          <th>Last Seen</th>
+          <th>{t('catalog.sourceType')}</th>
+          <th>{t('catalog.sourceName')}</th>
+          <th>{t('catalog.identifier')}</th>
+          <th>{t('catalog.agents')}</th>
+          <th>{t('catalog.access')}</th>
+          <th>{t('catalog.tier')}</th>
+          <th>{t('catalog.spans')}</th>
+          <th>{t('catalog.lastSeen')}</th>
         </tr>
       </thead>
       <tbody>

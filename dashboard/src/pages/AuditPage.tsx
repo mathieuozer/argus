@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuditStore } from '../stores/auditStore';
 import AuditTable from '../components/audit/AuditTable';
 import AuditFilters from '../components/audit/AuditFilters';
@@ -6,6 +7,7 @@ import AuditExportButton from '../components/audit/AuditExportButton';
 import type { TimeRange } from '../components/shared/TimeRangePicker';
 
 function AuditPage() {
+  const { t } = useTranslation();
   const { entries, loading, error, fetchEntries } = useAuditStore();
   const [actorFilter, setActorFilter] = useState('');
   const [actionFilter, setActionFilter] = useState('');
@@ -27,12 +29,12 @@ function AuditPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <h2>Audit Log</h2>
-          <p>Immutable audit trail of all platform actions</p>
+          <h2>{t('audit.title')}</h2>
+          <p>{t('audit.subtitle')}</p>
         </div>
         <div className="page-header-actions">
           <AuditExportButton entries={filteredEntries} />
-          <button className="btn" onClick={() => fetchEntries()} disabled={loading}>Refresh</button>
+          <button className="btn" onClick={() => fetchEntries()} disabled={loading}>{t('common.refresh')}</button>
         </div>
       </div>
 
@@ -50,7 +52,7 @@ function AuditPage() {
       {loading && entries.length === 0 && (
         <div className="loading-container">
           <div className="loading-spinner" />
-          <span>Loading audit log...</span>
+          <span>{t('audit.loadingAudit')}</span>
         </div>
       )}
 
@@ -58,8 +60,8 @@ function AuditPage() {
 
       {!loading && entries.length === 0 && (
         <div className="empty-state">
-          <h3>No audit entries</h3>
-          <p>Audit entries will appear here as platform actions are performed.</p>
+          <h3>{t('audit.noEntries')}</h3>
+          <p>{t('audit.noEntriesDescription')}</p>
         </div>
       )}
     </div>

@@ -1,15 +1,9 @@
+import { useTranslation } from 'react-i18next';
 import type { DQScore } from '../../types/dataquality';
 
 interface QualityScoreCardProps {
   score: DQScore;
 }
-
-const DIMENSIONS = [
-  { key: 'completeness' as const, label: 'Completeness', color: 'var(--color-primary)' },
-  { key: 'conformance' as const, label: 'Conformance', color: 'var(--color-success)' },
-  { key: 'consistency' as const, label: 'Consistency', color: 'var(--color-warning)' },
-  { key: 'freshness' as const, label: 'Freshness', color: '#8b5cf6' },
-];
 
 function getScoreColor(score: number): string {
   if (score >= 0.9) return 'var(--color-success)';
@@ -18,6 +12,15 @@ function getScoreColor(score: number): string {
 }
 
 function QualityScoreCard({ score }: QualityScoreCardProps) {
+  const { t } = useTranslation();
+
+  const DIMENSIONS = [
+    { key: 'completeness' as const, labelKey: 'dataQuality.completeness', color: 'var(--color-primary)' },
+    { key: 'conformance' as const, labelKey: 'dataQuality.conformance', color: 'var(--color-success)' },
+    { key: 'consistency' as const, labelKey: 'dataQuality.consistency', color: 'var(--color-warning)' },
+    { key: 'freshness' as const, labelKey: 'dataQuality.freshness', color: '#8b5cf6' },
+  ];
+
   return (
     <div className="card quality-score-card">
       <div className="card-header">
@@ -27,10 +30,10 @@ function QualityScoreCard({ score }: QualityScoreCardProps) {
         </span>
       </div>
       <div className="quality-dimensions">
-        {DIMENSIONS.map(({ key, label, color }) => (
+        {DIMENSIONS.map(({ key, labelKey, color }) => (
           <div key={key} className="quality-dimension">
             <div className="quality-dimension-header">
-              <span>{label}</span>
+              <span>{t(labelKey)}</span>
               <span>{(score[key] * 100).toFixed(1)}%</span>
             </div>
             <div className="quality-bar-bg">
@@ -43,8 +46,8 @@ function QualityScoreCard({ score }: QualityScoreCardProps) {
         ))}
       </div>
       <div className="quality-meta">
-        <span>Samples: {score.sample_size}</span>
-        <span>Computed: {new Date(score.computed_at).toLocaleString()}</span>
+        <span>{t('dataQuality.samples', { count: score.sample_size })}</span>
+        <span>{t('dataQuality.computed', { date: new Date(score.computed_at).toLocaleString() })}</span>
       </div>
     </div>
   );

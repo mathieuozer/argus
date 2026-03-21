@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { DQViolation } from '../../types/dataquality';
 
 interface ViolationListProps {
@@ -13,8 +14,10 @@ function getSeverityClass(severity: string): string {
 }
 
 function ViolationList({ violations }: ViolationListProps) {
+  const { t } = useTranslation();
+
   if (violations.length === 0) {
-    return <p className="text-muted">No recent violations.</p>;
+    return <p className="text-muted">{t('dataQuality.noViolations')}</p>;
   }
 
   return (
@@ -22,11 +25,11 @@ function ViolationList({ violations }: ViolationListProps) {
       <table className="table">
         <thead>
           <tr>
-            <th>Agent</th>
-            <th>Rule</th>
-            <th>Severity</th>
-            <th>Message</th>
-            <th>Time</th>
+            <th>{t('dataQuality.agent')}</th>
+            <th>{t('dataQuality.rule')}</th>
+            <th>{t('dataQuality.severity')}</th>
+            <th>{t('dataQuality.message')}</th>
+            <th>{t('dataQuality.time')}</th>
           </tr>
         </thead>
         <tbody>

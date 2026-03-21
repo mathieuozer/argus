@@ -1,10 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useTraceStore } from '../stores/traceStore';
 import TraceFilters from '../components/traces/TraceFilters';
 import type { TimeRange } from '../components/shared/TimeRangePicker';
 
 function TracesPage() {
+  const { t } = useTranslation();
   const { traces, loading, error, fetchTraces } = useTraceStore();
   const navigate = useNavigate();
   const [agentFilter, setAgentFilter] = useState('');
@@ -29,11 +31,11 @@ function TracesPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <h2>Traces</h2>
-          <p>Distributed trace explorer for agent operations</p>
+          <h2>{t('traces.title')}</h2>
+          <p>{t('traces.subtitle')}</p>
         </div>
         <div className="page-header-actions">
-          <button className="btn" onClick={() => fetchTraces()} disabled={loading}>Refresh</button>
+          <button className="btn" onClick={() => fetchTraces()} disabled={loading}>{t('common.refresh')}</button>
         </div>
       </div>
 
@@ -51,7 +53,7 @@ function TracesPage() {
       {loading && traces.length === 0 && (
         <div className="loading-container">
           <div className="loading-spinner" />
-          <span>Loading traces...</span>
+          <span>{t('traces.loadingTraces')}</span>
         </div>
       )}
 
@@ -59,13 +61,13 @@ function TracesPage() {
         <table className="table">
           <thead>
             <tr>
-              <th>Trace ID</th>
-              <th>Root Operation</th>
-              <th>Agent</th>
-              <th>Spans</th>
-              <th>Duration</th>
-              <th>Status</th>
-              <th>Started</th>
+              <th>{t('traces.traceId')}</th>
+              <th>{t('traces.rootOperation')}</th>
+              <th>{t('traces.agent')}</th>
+              <th>{t('traces.spans')}</th>
+              <th>{t('traces.duration')}</th>
+              <th>{t('traces.status')}</th>
+              <th>{t('traces.started')}</th>
             </tr>
           </thead>
           <tbody>
@@ -91,8 +93,8 @@ function TracesPage() {
 
       {!loading && filteredTraces.length === 0 && (
         <div className="empty-state">
-          <h3>No traces found</h3>
-          <p>Traces will appear here as agents process requests.</p>
+          <h3>{t('traces.noTraces')}</h3>
+          <p>{t('traces.noTracesDescription')}</p>
         </div>
       )}
     </div>

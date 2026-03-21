@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { DQScore } from '../../types/dataquality';
 
 interface AgentQualityRowProps {
@@ -5,13 +6,15 @@ interface AgentQualityRowProps {
   onClick: () => void;
 }
 
-function getStatusLabel(overall: number): { text: string; className: string } {
-  if (overall >= 0.9) return { text: 'Good', className: 'badge-success' };
-  if (overall >= 0.7) return { text: 'Fair', className: 'badge-warning' };
-  return { text: 'Poor', className: 'badge-error' };
-}
-
 function AgentQualityRow({ score, onClick }: AgentQualityRowProps) {
+  const { t } = useTranslation();
+
+  function getStatusLabel(overall: number): { text: string; className: string } {
+    if (overall >= 0.9) return { text: t('dataQuality.good'), className: 'badge-success' };
+    if (overall >= 0.7) return { text: t('dataQuality.fair'), className: 'badge-warning' };
+    return { text: t('dataQuality.poor'), className: 'badge-error' };
+  }
+
   const status = getStatusLabel(score.overall);
 
   return (

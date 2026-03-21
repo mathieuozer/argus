@@ -1,42 +1,44 @@
 import { useState } from 'react';
-
-const complianceProfiles = [
-  {
-    id: 'gov-tr',
-    label: 'Turkey Government (gov-tr)',
-    description: 'KVKK compliance, Tier 3 default classification, storage restricted to TR regions, 5-year audit retention. Air-gap capable.',
-  },
-  {
-    id: 'eu-gdpr',
-    label: 'EU GDPR (eu-gdpr)',
-    description: 'GDPR patterns for PII scrubbing, EU-only storage regions, configurable audit retention with right-to-erasure support via cryptographic key destruction.',
-  },
-  {
-    id: 'fedramp-moderate',
-    label: 'US FedRAMP Moderate (fedramp-moderate)',
-    description: 'US Gov region storage, FIPS 140-2 crypto modules, continuous monitoring reports, POA&M tracking for findings.',
-  },
-];
-
-const isolationTiers = [
-  {
-    id: 'A',
-    label: 'Tier A - Shared',
-    description: 'Logical isolation via Row-Level Security. Suitable for SMB and low-sensitivity workloads.',
-  },
-  {
-    id: 'B',
-    label: 'Tier B - Dedicated Namespace',
-    description: 'Dedicated DB schema and NATS namespace. For regulated enterprise deployments.',
-  },
-  {
-    id: 'C',
-    label: 'Tier C - Dedicated Deployment',
-    description: 'Separate cluster, separate DB instance. For government, defense, and classified workloads. Fully air-gap capable.',
-  },
-];
+import { useTranslation } from 'react-i18next';
 
 function SettingsPage() {
+  const { t } = useTranslation();
+
+  const complianceProfiles = [
+    {
+      id: 'gov-tr',
+      labelKey: 'settings.profiles.govTr',
+      descriptionKey: 'settings.profiles.govTrDescription',
+    },
+    {
+      id: 'eu-gdpr',
+      labelKey: 'settings.profiles.euGdpr',
+      descriptionKey: 'settings.profiles.euGdprDescription',
+    },
+    {
+      id: 'fedramp-moderate',
+      labelKey: 'settings.profiles.fedRamp',
+      descriptionKey: 'settings.profiles.fedRampDescription',
+    },
+  ];
+
+  const isolationTiers = [
+    {
+      id: 'A',
+      labelKey: 'settings.tierALabel',
+      descriptionKey: 'settings.tierADescription',
+    },
+    {
+      id: 'B',
+      labelKey: 'settings.tierBLabel',
+      descriptionKey: 'settings.tierBDescription',
+    },
+    {
+      id: 'C',
+      labelKey: 'settings.tierCLabel',
+      descriptionKey: 'settings.tierCDescription',
+    },
+  ];
   const [selectedProfile, setSelectedProfile] = useState('eu-gdpr');
   const [piiScrubEnabled, setPiiScrubEnabled] = useState(true);
   const [selectedTier, setSelectedTier] = useState('A');
@@ -45,8 +47,8 @@ function SettingsPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <h2>Settings</h2>
-          <p>Configure tenant policies, compliance, and platform settings</p>
+          <h2>{t('settings.title')}</h2>
+          <p>{t('settings.subtitle')}</p>
         </div>
       </div>
 
@@ -55,31 +57,31 @@ function SettingsPage() {
         <div className="card mb-6">
           <div className="card-header">
             <div>
-              <div className="card-title">Tenant Configuration</div>
+              <div className="card-title">{t('settings.tenantConfig')}</div>
               <div className="card-description">
-                Current tenant identity and isolation settings
+                {t('settings.tenantConfigDescription')}
               </div>
             </div>
           </div>
           <div className="detail-row">
-            <span className="detail-label">Tenant ID</span>
+            <span className="detail-label">{t('settings.tenantId')}</span>
             <span className="detail-value text-mono">default</span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">Environment</span>
+            <span className="detail-label">{t('settings.environment')}</span>
             <span className="detail-value">
               <span className="badge badge-info">development</span>
             </span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">Tenant Enforcement</span>
+            <span className="detail-label">{t('settings.tenantEnforcement')}</span>
             <span className="detail-value">
               <span className="badge badge-success">strict</span>
             </span>
           </div>
 
           <div style={{ marginTop: 'var(--space-5)' }}>
-            <label className="input-label">Isolation Tier</label>
+            <label className="input-label">{t('settings.isolationTier')}</label>
             <div className="grid" style={{ gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
               {isolationTiers.map((tier) => (
                 <label
@@ -103,9 +105,9 @@ function SettingsPage() {
                     style={{ marginTop: '4px', accentColor: 'var(--color-primary)' }}
                   />
                   <div>
-                    <div className="font-medium">{tier.label}</div>
+                    <div className="font-medium">{t(tier.labelKey)}</div>
                     <div className="text-sm text-muted" style={{ marginTop: '2px' }}>
-                      {tier.description}
+                      {t(tier.descriptionKey)}
                     </div>
                   </div>
                 </label>
@@ -120,30 +122,29 @@ function SettingsPage() {
         <div className="card mb-6">
           <div className="card-header">
             <div>
-              <div className="card-title">RBAC Policies</div>
+              <div className="card-title">{t('settings.rbacPolicies')}</div>
               <div className="card-description">
-                Role-based access control managed by the control-plane via OPA policy engine
+                {t('settings.rbacDescription')}
               </div>
             </div>
           </div>
           <div className="detail-row">
-            <span className="detail-label">Policy Engine</span>
-            <span className="detail-value">Open Policy Agent (OPA)</span>
+            <span className="detail-label">{t('settings.policyEngine')}</span>
+            <span className="detail-value">{t('settings.policyEngineValue')}</span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">Authentication</span>
-            <span className="detail-value">Bearer JWT with tenant claim</span>
+            <span className="detail-label">{t('settings.authentication')}</span>
+            <span className="detail-value">{t('settings.authenticationValue')}</span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">Cross-Tenant Access</span>
+            <span className="detail-label">{t('settings.crossTenantAccess')}</span>
             <span className="detail-value">
-              <span className="badge badge-danger">denied</span>
+              <span className="badge badge-danger">{t('settings.crossTenantDenied')}</span>
             </span>
           </div>
           <div style={{ marginTop: 'var(--space-4)' }}>
             <p className="text-sm text-muted">
-              RBAC policies are defined in the control-plane and enforced at every API endpoint.
-              Every new endpoint must include a test asserting that cross-tenant access returns 403.
+              {t('settings.rbacNote')}
             </p>
           </div>
         </div>
@@ -154,9 +155,9 @@ function SettingsPage() {
         <div className="card mb-6">
           <div className="card-header">
             <div>
-              <div className="card-title">PII Scrubbing</div>
+              <div className="card-title">{t('settings.piiScrubbing')}</div>
               <div className="card-description">
-                Automatic detection and removal of personally identifiable information from telemetry data
+                {t('settings.piiDescription')}
               </div>
             </div>
           </div>
@@ -167,31 +168,31 @@ function SettingsPage() {
                 checked={piiScrubEnabled}
                 onChange={(e) => setPiiScrubEnabled(e.target.checked)}
               />
-              Enable PII scrubbing on telemetry ingestion
+              {t('settings.enablePii')}
             </label>
           </div>
           {piiScrubEnabled && (
             <div className="animate-fade-in">
               <div className="detail-row">
-                <span className="detail-label">Method</span>
-                <span className="detail-value">Regex + NER (Named Entity Recognition)</span>
+                <span className="detail-label">{t('settings.piiMethod')}</span>
+                <span className="detail-value">{t('settings.piiMethodValue')}</span>
               </div>
               <div className="detail-row">
-                <span className="detail-label">Patterns</span>
+                <span className="detail-label">{t('settings.piiPatterns')}</span>
                 <span className="detail-value">
                   <div className="tag-list">
-                    <span className="tag">email</span>
-                    <span className="tag">IP address</span>
-                    <span className="tag">national ID</span>
-                    <span className="tag">IBAN</span>
-                    <span className="tag">phone</span>
-                    <span className="tag">name</span>
+                    <span className="tag">{t('settings.piiPatternLabels.email')}</span>
+                    <span className="tag">{t('settings.piiPatternLabels.ipAddress')}</span>
+                    <span className="tag">{t('settings.piiPatternLabels.nationalId')}</span>
+                    <span className="tag">{t('settings.piiPatternLabels.iban')}</span>
+                    <span className="tag">{t('settings.piiPatternLabels.phone')}</span>
+                    <span className="tag">{t('settings.piiPatternLabels.name')}</span>
                   </div>
                 </span>
               </div>
               <div className="detail-row">
-                <span className="detail-label">Applied At</span>
-                <span className="detail-value">Sidecar collection layer (before storage)</span>
+                <span className="detail-label">{t('settings.piiAppliedAt')}</span>
+                <span className="detail-value">{t('settings.piiAppliedAtValue')}</span>
               </div>
             </div>
           )}
@@ -203,9 +204,9 @@ function SettingsPage() {
         <div className="card">
           <div className="card-header">
             <div>
-              <div className="card-title">Compliance Profile</div>
+              <div className="card-title">{t('settings.complianceProfile')}</div>
               <div className="card-description">
-                Select the regulatory framework that applies to this tenant
+                {t('settings.complianceDescription')}
               </div>
             </div>
           </div>
@@ -217,7 +218,7 @@ function SettingsPage() {
             >
               {complianceProfiles.map((profile) => (
                 <option key={profile.id} value={profile.id}>
-                  {profile.label}
+                  {t(profile.labelKey)}
                 </option>
               ))}
             </select>
@@ -235,10 +236,10 @@ function SettingsPage() {
                   }}
                 >
                   <div className="font-medium text-primary" style={{ marginBottom: 'var(--space-1)' }}>
-                    {profile.label}
+                    {t(profile.labelKey)}
                   </div>
                   <div className="text-sm text-muted">
-                    {profile.description}
+                    {t(profile.descriptionKey)}
                   </div>
                 </div>
               </div>

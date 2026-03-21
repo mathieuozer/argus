@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import TimeRangePicker, { type TimeRange } from '../shared/TimeRangePicker';
 
 interface AuditFiltersProps {
@@ -17,20 +18,22 @@ function AuditFilters({
   timeRange,
   onTimeRangeChange,
 }: AuditFiltersProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="audit-filters">
       <div className="filter-group">
         <input
           type="text"
           className="filter-input"
-          placeholder="Filter by actor..."
+          placeholder={t('audit.filterByActor')}
           value={actorFilter}
           onChange={(e) => onActorFilterChange(e.target.value)}
         />
         <input
           type="text"
           className="filter-input"
-          placeholder="Filter by action..."
+          placeholder={t('audit.filterByAction')}
           value={actionFilter}
           onChange={(e) => onActionFilterChange(e.target.value)}
         />

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Agent } from '../../types/agent';
 import StatusBadge from './StatusBadge';
 
@@ -23,6 +24,7 @@ function formatLastSeen(lastSeen: string): string {
 }
 
 function AgentCard({ agent, onNavigate }: AgentCardProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -71,26 +73,26 @@ function AgentCard({ agent, onNavigate }: AgentCardProps) {
       {expanded && (
         <div className="animate-fade-in" style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-4)' }}>
           <div className="detail-row">
-            <span className="detail-label">Node ID</span>
+            <span className="detail-label">{t('agents.nodeId')}</span>
             <span className="detail-value text-mono text-sm">{agent.node_id}</span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">SPIFFE ID</span>
+            <span className="detail-label">{t('agents.spiffeId')}</span>
             <span className="detail-value text-mono text-sm truncate" style={{ maxWidth: '400px' }}>
               {agent.svid_uri}
             </span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">Framework</span>
+            <span className="detail-label">{t('agents.framework')}</span>
             <span className="detail-value">{agent.framework}</span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">Version</span>
+            <span className="detail-label">{t('common.versionLabel')}</span>
             <span className="detail-value">v{agent.version}</span>
           </div>
           <div style={{ marginTop: 'var(--space-3)' }}>
             <span className="detail-label" style={{ marginBottom: 'var(--space-2)', display: 'block' }}>
-              Capabilities
+              {t('agents.capabilities')}
             </span>
             {agent.capabilities.length > 0 ? (
               <div className="tag-list">
@@ -99,7 +101,7 @@ function AgentCard({ agent, onNavigate }: AgentCardProps) {
                 ))}
               </div>
             ) : (
-              <span className="text-sm text-dim">No capabilities declared</span>
+              <span className="text-sm text-dim">{t('agents.noCapabilities')}</span>
             )}
           </div>
           {onNavigate && (
@@ -111,7 +113,7 @@ function AgentCard({ agent, onNavigate }: AgentCardProps) {
                   onNavigate();
                 }}
               >
-                View Details
+                {t('agents.viewDetails')}
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="5" y1="12" x2="19" y2="12" />
                   <polyline points="12 5 19 12 12 19" />

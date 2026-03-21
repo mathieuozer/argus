@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   ResponsiveContainer,
   BarChart,
@@ -14,6 +15,8 @@ interface CostBreakdownChartProps {
 }
 
 function CostBreakdownChart({ data }: CostBreakdownChartProps) {
+  const { t } = useTranslation();
+
   const chartData = data.map((item) => ({
     name: item.group,
     cost: +item.cost_usd.toFixed(2),
@@ -23,7 +26,7 @@ function CostBreakdownChart({ data }: CostBreakdownChartProps) {
   return (
     <div className="chart-card">
       <div className="chart-card-header">
-        <span className="chart-card-title">Cost Breakdown</span>
+        <span className="chart-card-title">{t('catalog.costBreakdown')}</span>
       </div>
       <div className="chart-card-body">
         <ResponsiveContainer width="100%" height={220}>
@@ -39,7 +42,7 @@ function CostBreakdownChart({ data }: CostBreakdownChartProps) {
                 fontSize: '12px',
                 color: 'var(--color-text)',
               }}
-              formatter={(value, name) => [name === 'cost' ? `$${value}` : Number(value).toLocaleString(), name === 'cost' ? 'Cost' : 'Tokens']}
+              formatter={(value, name) => [name === 'cost' ? `$${value}` : Number(value).toLocaleString(), name === 'cost' ? t('agentDetail.cost') : t('agentDetail.tokens')]}
             />
             <Bar dataKey="cost" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
           </BarChart>

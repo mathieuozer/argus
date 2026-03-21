@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useTraceStore } from '../stores/traceStore';
 import TraceTimeline from '../components/traces/TraceTimeline';
 import SpanDetail from '../components/traces/SpanDetail';
 import type { TraceSpan } from '../types/trace';
 
 function TraceDetailPage() {
+  const { t } = useTranslation();
   const { traceId } = useParams<{ traceId: string }>();
   const navigate = useNavigate();
   const { selectedTrace, loading, error, fetchTraceDetail } = useTraceStore();
@@ -21,7 +23,7 @@ function TraceDetailPage() {
     return (
       <div className="loading-container">
         <div className="loading-spinner" />
-        <span>Loading trace...</span>
+        <span>{t('traces.loadingTrace')}</span>
       </div>
     );
   }
@@ -31,7 +33,7 @@ function TraceDetailPage() {
   }
 
   if (!selectedTrace) {
-    return <div className="empty-state"><h3>Trace not found</h3></div>;
+    return <div className="empty-state"><h3>{t('traces.traceNotFound')}</h3></div>;
   }
 
   return (
@@ -42,14 +44,14 @@ function TraceDetailPage() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Back
+            {t('common.back')}
           </button>
           <div>
             <h2>Trace {selectedTrace.trace_id.slice(0, 12)}...</h2>
             <div className="page-header-meta">
-              <span>{selectedTrace.total_spans} spans</span>
-              <span>{selectedTrace.total_duration_ms}ms total</span>
-              {selectedTrace.has_errors && <span className="badge badge-error">Has Errors</span>}
+              <span>{t('traces.spansCount', { count: selectedTrace.total_spans })}</span>
+              <span>{t('traces.totalDuration', { ms: selectedTrace.total_duration_ms })}</span>
+              {selectedTrace.has_errors && <span className="badge badge-error">{t('traces.hasErrors')}</span>}
             </div>
           </div>
         </div>

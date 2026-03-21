@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d' | 'custom';
 
@@ -7,15 +8,16 @@ interface TimeRangePickerProps {
   onChange: (range: TimeRange) => void;
 }
 
-const OPTIONS: { label: string; value: TimeRange }[] = [
-  { label: '1h', value: '1h' },
-  { label: '6h', value: '6h' },
-  { label: '24h', value: '24h' },
-  { label: '7d', value: '7d' },
-  { label: '30d', value: '30d' },
+const OPTIONS: { value: TimeRange }[] = [
+  { value: '1h' },
+  { value: '6h' },
+  { value: '24h' },
+  { value: '7d' },
+  { value: '30d' },
 ];
 
 function TimeRangePicker({ value, onChange }: TimeRangePickerProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -27,20 +29,20 @@ function TimeRangePicker({ value, onChange }: TimeRangePickerProps) {
             className={`time-range-btn ${value === opt.value ? 'active' : ''}`}
             onClick={() => onChange(opt.value)}
           >
-            {opt.label}
+            {t(`timeRange.${opt.value}`)}
           </button>
         ))}
         <button
           className={`time-range-btn ${value === 'custom' ? 'active' : ''}`}
           onClick={() => setIsOpen(!isOpen)}
         >
-          Custom
+          {t('common.custom')}
         </button>
       </div>
       {isOpen && value === 'custom' && (
         <div className="time-range-custom">
           <input type="datetime-local" className="time-range-input" />
-          <span className="time-range-separator">to</span>
+          <span className="time-range-separator">{t('common.to')}</span>
           <input type="datetime-local" className="time-range-input" />
         </div>
       )}
