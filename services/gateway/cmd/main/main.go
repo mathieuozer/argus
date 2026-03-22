@@ -12,6 +12,7 @@ import (
 	"github.com/argus-platform/argus/pkg/config"
 	"github.com/argus-platform/argus/pkg/health"
 	"github.com/argus-platform/argus/pkg/logger"
+	"github.com/argus-platform/argus/pkg/metrics"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/services/gateway/internal/mtls"
 	"github.com/argus-platform/argus/services/gateway/internal/proxy"
@@ -37,11 +38,13 @@ func main() {
 	wsHandler := websocket.New(websocket.DefaultRoutes(), log)
 
 	healthChecker := health.NewChecker()
+	metricsReg := metrics.NewRegistry()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthChecker.Handler())
 	mux.HandleFunc("/health/live", healthChecker.LiveHandler())
 	mux.HandleFunc("/health/ready", healthChecker.ReadyHandler())
+	mux.HandleFunc("/metrics", metricsReg.Handler())
 
 	// Register WebSocket routes before the catch-all proxy.
 	wsHandler.RegisterRoutes(mux)
@@ -53,8 +56,10 @@ func main() {
 			middleware.CORSWithOrigin(
 				middleware.MaxBodySize(1<<20)(
 					middleware.RequestID(
-						middleware.RequestLogger(log)(
-							limiter.Middleware(mux),
+						metrics.HTTPMiddleware(metricsReg, "gateway")(
+							middleware.RequestLogger(log)(
+								limiter.Middleware(mux),
+							),
 						),
 					),
 				),

@@ -18,6 +18,7 @@ import (
 	"github.com/argus-platform/argus/pkg/health"
 	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/logger"
+	"github.com/argus-platform/argus/pkg/metrics"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/pkg/tenancy"
 	"github.com/argus-platform/argus/services/telemetry/internal/catalog"
@@ -133,11 +134,15 @@ func main() {
 		})
 	}
 
+	// Metrics registry
+	metricsReg := metrics.NewRegistry()
+
 	// HTTP server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthChecker.Handler())
 	mux.HandleFunc("/health/live", healthChecker.LiveHandler())
 	mux.HandleFunc("/health/ready", healthChecker.ReadyHandler())
+	mux.HandleFunc("/metrics", metricsReg.Handler())
 
 	// Span ingestion endpoint
 	mux.Handle("/api/v1/telemetry/spans", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -331,7 +336,9 @@ func main() {
 			middleware.CORSWithOrigin(
 				middleware.MaxBodySize(1<<20)(
 					middleware.RequestID(
-						middleware.RequestLogger(log)(mux),
+						metrics.HTTPMiddleware(metricsReg, "telemetry")(
+							middleware.RequestLogger(log)(mux),
+						),
 					),
 				),
 			),

@@ -17,6 +17,7 @@ import (
 	"github.com/argus-platform/argus/pkg/health"
 	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/logger"
+	"github.com/argus-platform/argus/pkg/metrics"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/pkg/tenancy"
 	"github.com/argus-platform/argus/services/control-plane/internal/alerts"
@@ -179,6 +180,9 @@ func main() {
 		}
 	}()
 
+	// Metrics registry
+	metricsReg := metrics.NewRegistry()
+
 	// Health checks with dependency verification
 	healthChecker := health.NewChecker()
 	if dbPool != nil {
@@ -192,6 +196,7 @@ func main() {
 	mux.HandleFunc("/health", healthChecker.Handler())
 	mux.HandleFunc("/health/live", healthChecker.LiveHandler())
 	mux.HandleFunc("/health/ready", healthChecker.ReadyHandler())
+	mux.HandleFunc("/metrics", metricsReg.Handler())
 
 	// Dashboard endpoints (alerts, audit)
 	dashHandler.RegisterRoutes(mux)
@@ -522,9 +527,11 @@ func main() {
 			middleware.CORSWithOrigin(
 				middleware.MaxBodySize(1<<20)( // 1MB max request body
 					middleware.RequestID(
-						jwtAuth.Middleware(
-							tenantMw(
-								middleware.RequestLogger(log)(mux),
+						metrics.HTTPMiddleware(metricsReg, "control-plane")(
+							jwtAuth.Middleware(
+								tenantMw(
+									middleware.RequestLogger(log)(mux),
+								),
 							),
 						),
 					),
