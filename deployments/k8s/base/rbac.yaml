@@ -1,0 +1,109 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argus-service-role
+  namespace: argus
+rules:
+  # Allow reading ConfigMaps for dynamic configuration
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  # Allow reading secrets for JWT keys and DB credentials
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+  # Allow service discovery via endpoints
+  - apiGroups: [""]
+    resources: ["endpoints", "services"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argus-control-plane-binding
+  namespace: argus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argus-service-role
+subjects:
+  - kind: ServiceAccount
+    name: argus-control-plane
+    namespace: argus
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argus-orchestrator-binding
+  namespace: argus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argus-service-role
+subjects:
+  - kind: ServiceAccount
+    name: argus-orchestrator
+    namespace: argus
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argus-telemetry-binding
+  namespace: argus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argus-service-role
+subjects:
+  - kind: ServiceAccount
+    name: argus-telemetry
+    namespace: argus
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argus-identity-binding
+  namespace: argus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argus-service-role
+subjects:
+  - kind: ServiceAccount
+    name: argus-identity
+    namespace: argus
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argus-gateway-binding
+  namespace: argus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argus-service-role
+subjects:
+  - kind: ServiceAccount
+    name: argus-gateway
+    namespace: argus
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argus-sidecar-binding
+  namespace: argus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argus-service-role
+subjects:
+  - kind: ServiceAccount
+    name: argus-sidecar
+    namespace: argus

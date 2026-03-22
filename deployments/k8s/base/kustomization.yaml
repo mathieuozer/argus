@@ -17,3 +17,4 @@ resources:
   - control-plane.yaml
   - sidecar.yaml
   - predictor.yaml
+  - rbac.yaml

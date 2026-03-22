@@ -131,6 +131,7 @@ func (h *Histogram) Observe(labels string, value float64) {
 	for i, b := range h.buckets {
 		if value <= b {
 			d.bucketCounts[i]++
+			break
 		}
 	}
 }
