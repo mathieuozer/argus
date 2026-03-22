@@ -46,7 +46,9 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestServiceRoutes(t *testing.T) {
+func TestBuildServiceRoutes_Defaults(t *testing.T) {
+	routes := buildServiceRoutes()
+
 	tests := []struct {
 		name    string
 		prefix  string
@@ -81,22 +83,44 @@ func TestServiceRoutes(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, ok := ServiceRoutes[tc.prefix]
+			got, ok := routes[tc.prefix]
 			if !ok {
-				t.Fatalf("ServiceRoutes missing prefix %q", tc.prefix)
+				t.Fatalf("routes missing prefix %q", tc.prefix)
 			}
 			if got != tc.wantURL {
-				t.Errorf("ServiceRoutes[%q] = %q, want %q", tc.prefix, got, tc.wantURL)
+				t.Errorf("routes[%q] = %q, want %q", tc.prefix, got, tc.wantURL)
 			}
 		})
 	}
 
 	t.Run("expected number of routes", func(t *testing.T) {
 		want := 5
-		if len(ServiceRoutes) != want {
-			t.Errorf("ServiceRoutes has %d entries, want %d", len(ServiceRoutes), want)
+		if len(routes) != want {
+			t.Errorf("routes has %d entries, want %d", len(routes), want)
 		}
 	})
+}
+
+func TestBuildServiceRoutes_FromEnv(t *testing.T) {
+	t.Setenv("ARGUS_BACKEND_ORCHESTRATOR", "http://orchestrator:8082")
+	t.Setenv("ARGUS_BACKEND_TELEMETRY", "http://telemetry:8083")
+	t.Setenv("ARGUS_BACKEND_IDENTITY", "http://identity:8081")
+	t.Setenv("ARGUS_BACKEND_CONTROL_PLANE", "http://control-plane:8084")
+
+	routes := buildServiceRoutes()
+
+	if routes["/api/v1/agents"] != "http://orchestrator:8082" {
+		t.Errorf("agents = %q, want http://orchestrator:8082", routes["/api/v1/agents"])
+	}
+	if routes["/api/v1/telemetry"] != "http://telemetry:8083" {
+		t.Errorf("telemetry = %q, want http://telemetry:8083", routes["/api/v1/telemetry"])
+	}
+	if routes["/api/v1/identity"] != "http://identity:8081" {
+		t.Errorf("identity = %q, want http://identity:8081", routes["/api/v1/identity"])
+	}
+	if routes["/api/v1/"] != "http://control-plane:8084" {
+		t.Errorf("control-plane = %q, want http://control-plane:8084", routes["/api/v1/"])
+	}
 }
 
 func TestServeHTTP_UnknownPath_Returns404(t *testing.T) {
@@ -137,22 +161,22 @@ func TestServeHTTP_UnknownPath_Returns404(t *testing.T) {
 	}
 }
 
+func newProxyWithBackend(t *testing.T, prefix, backendURL string) *Proxy {
+	t.Helper()
+	p := New(&config.Base{}, zap.NewNop())
+	p.routes[prefix] = backendURL
+	return p
+}
+
 func TestServeHTTP_KnownPath_ProxiesRequest(t *testing.T) {
-	// Spin up a real backend that responds with 200 and a known body.
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Backend", "test")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("backend-ok"))
+		_, _ = w.Write([]byte("backend-ok"))
 	}))
 	defer backend.Close()
 
-	// Temporarily replace one of the ServiceRoutes entries so the proxy
-	// forwards to our test backend. We restore the original after the test.
-	original := ServiceRoutes["/api/v1/agents"]
-	ServiceRoutes["/api/v1/agents"] = backend.URL
-	defer func() { ServiceRoutes["/api/v1/agents"] = original }()
-
-	p := New(&config.Base{}, zap.NewNop())
+	p := newProxyWithBackend(t, "/api/v1/agents", backend.URL)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/agents", nil)
 	w := httptest.NewRecorder()
 
@@ -170,7 +194,6 @@ func TestServeHTTP_KnownPath_ProxiesRequest(t *testing.T) {
 }
 
 func TestServeHTTP_PreservesPath(t *testing.T) {
-	// Verify that the full request path is forwarded to the backend.
 	var receivedPath string
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedPath = r.URL.Path
@@ -178,11 +201,7 @@ func TestServeHTTP_PreservesPath(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	original := ServiceRoutes["/api/v1/agents"]
-	ServiceRoutes["/api/v1/agents"] = backend.URL
-	defer func() { ServiceRoutes["/api/v1/agents"] = original }()
-
-	p := New(&config.Base{}, zap.NewNop())
+	p := newProxyWithBackend(t, "/api/v1/agents", backend.URL)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/agents/agent-123", nil)
 	w := httptest.NewRecorder()
 
@@ -208,11 +227,7 @@ func TestServeHTTP_ForwardsMethod(t *testing.T) {
 			}))
 			defer backend.Close()
 
-			original := ServiceRoutes["/api/v1/agents"]
-			ServiceRoutes["/api/v1/agents"] = backend.URL
-			defer func() { ServiceRoutes["/api/v1/agents"] = original }()
-
-			p := New(&config.Base{}, zap.NewNop())
+			p := newProxyWithBackend(t, "/api/v1/agents", backend.URL)
 			req := httptest.NewRequest(method, "/api/v1/agents", nil)
 			w := httptest.NewRecorder()
 

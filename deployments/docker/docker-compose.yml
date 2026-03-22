@@ -23,7 +23,7 @@ services:
       - argus-net
 
   nats:
-    image: nats:latest
+    image: nats:2.10-alpine
     command: ["--jetstream", "--store_dir=/data", "--name=argus-nats", "--http_port=8222"]
     ports:
       - "4222:4222"   # Client connections
@@ -34,8 +34,8 @@ services:
       test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
       interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - argus-net
 
@@ -67,6 +67,10 @@ services:
       ARGUS_DB_DSN: postgres://argus:argus@postgres:5432/argus?sslmode=disable
       ARGUS_NATS_URL: nats://nats:4222
       ARGUS_AIR_GAP: "false"
+      ARGUS_BACKEND_ORCHESTRATOR: http://orchestrator:8082
+      ARGUS_BACKEND_TELEMETRY: http://telemetry:8083
+      ARGUS_BACKEND_IDENTITY: http://identity:8081
+      ARGUS_BACKEND_CONTROL_PLANE: http://control-plane:8084
     depends_on:
       postgres:
         condition: service_healthy
@@ -181,6 +185,10 @@ services:
       ARGUS_NATS_URL: nats://nats:4222
       ARGUS_NATS_STREAM: ARGUS_TELEMETRY
       ARGUS_AIR_GAP: "false"
+      ARGUS_ORCHESTRATOR_ADDR: http://orchestrator:8082
+      ARGUS_IDENTITY_ADDR: http://identity:8081
+      ARGUS_AGENT_ID: demo-sidecar
+      ARGUS_TENANT_ID: default
     depends_on:
       - orchestrator
       - identity
@@ -219,7 +227,8 @@ services:
       - ../../dashboard:/app
       - dashboard_node_modules:/app/node_modules
     environment:
-      VITE_API_BASE_URL: http://localhost:8080
+      ARGUS_API_URL: http://gateway:8080
+      ARGUS_WS_URL: ws://gateway:8080
     depends_on:
       - gateway
     networks:

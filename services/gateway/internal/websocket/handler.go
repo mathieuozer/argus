@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 
@@ -24,10 +25,15 @@ type Route struct {
 }
 
 // DefaultRoutes returns the WebSocket routes proxying to the control-plane.
+// The backend address is read from ARGUS_BACKEND_CONTROL_PLANE (default: http://localhost:8084).
 func DefaultRoutes() []Route {
+	backend := os.Getenv("ARGUS_BACKEND_CONTROL_PLANE")
+	if backend == "" {
+		backend = "http://localhost:8084"
+	}
 	return []Route{
-		{PathPrefix: "/ws/v1/agents/stream", Backend: "http://localhost:8084"},
-		{PathPrefix: "/ws/v1/telemetry/stream", Backend: "http://localhost:8084"},
+		{PathPrefix: "/ws/v1/agents/stream", Backend: backend},
+		{PathPrefix: "/ws/v1/telemetry/stream", Backend: backend},
 	}
 }
 

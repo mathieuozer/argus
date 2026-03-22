@@ -25,7 +25,7 @@ COPY sidecar/ sidecar/
 # Build static binary
 RUN cd sidecar && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags="-s -w" -o /app/sidecar ./cmd/main
+    go build -trimpath -ldflags="-s -w" -o /app/bin/sidecar ./cmd/main
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM alpine:3.23
@@ -36,7 +36,7 @@ RUN apk upgrade --no-cache && apk add --no-cache ca-certificates tzdata
 RUN addgroup -S argus && adduser -S argus -G argus
 USER argus
 
-COPY --from=builder /app/sidecar /usr/local/bin/sidecar
+COPY --from=builder /app/bin/sidecar /usr/local/bin/sidecar
 
 EXPOSE 8090
 

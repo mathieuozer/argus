@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -299,10 +300,20 @@ func main() {
 		}, tenantID)
 	})))
 
-	// Wrap with auth + tenant + logging middleware
+	// Wrap with auth + tenant + logging middleware.
+	// TenantHTTP extracts X-Tenant-ID header into tenancy context.
+	// It is applied after auth so that all API routes have tenant context.
+	// /health and /api/v1/auth/token are excluded (they don't need tenant).
+	tenantMw := tenantMiddlewareWithExclusions(
+		middleware.TenantHTTP,
+		"/health",
+		"/api/v1/auth/token",
+	)
 	handler := middleware.CORS(
 		jwtAuth.Middleware(
-			middleware.RequestLogger(log)(mux),
+			tenantMw(
+				middleware.RequestLogger(log)(mux),
+			),
 		),
 	)
 
@@ -360,4 +371,21 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 			"message": message,
 		},
 	})
+}
+
+// tenantMiddlewareWithExclusions wraps a tenant middleware so that certain
+// path prefixes bypass it (e.g., /health, /api/v1/auth/token).
+func tenantMiddlewareWithExclusions(mw func(http.Handler) http.Handler, excludedPrefixes ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		wrapped := mw(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			for _, prefix := range excludedPrefixes {
+				if strings.HasPrefix(r.URL.Path, prefix) {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			wrapped.ServeHTTP(w, r)
+		})
+	}
 }
