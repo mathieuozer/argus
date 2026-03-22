@@ -3,6 +3,7 @@ package costgov
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -10,6 +11,60 @@ import (
 	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
+
+// Response DTOs matching the dashboard frontend contract.
+
+type breakdownItem struct {
+	Group      string  `json:"group"`
+	CostUSD    float64 `json:"cost_usd"`
+	TokensUsed int64   `json:"tokens_used"`
+	TaskCount  int     `json:"task_count"`
+}
+
+type trendItem struct {
+	Timestamp  string  `json:"timestamp"`
+	CostUSD    float64 `json:"cost_usd"`
+	TokensUsed int64   `json:"tokens_used"`
+}
+
+type budgetItem struct {
+	ID             string  `json:"id"`
+	AgentID        string  `json:"agent_id"`
+	BudgetUSD      float64 `json:"budget_usd"`
+	SpentUSD       float64 `json:"spent_usd"`
+	Period         string  `json:"period"`
+	AlertThreshold float64 `json:"alert_threshold"`
+	Enabled        bool    `json:"enabled"`
+	CreatedAt      string  `json:"created_at"`
+}
+
+type anomalyItem struct {
+	ID          string  `json:"id"`
+	AgentID     string  `json:"agent_id"`
+	ExpectedUSD float64 `json:"expected_usd"`
+	ActualUSD   float64 `json:"actual_usd"`
+	Ratio       float64 `json:"ratio"`
+	DetectedAt  string  `json:"detected_at"`
+	Status      string  `json:"status"`
+}
+
+func (h *Handler) toBudgetItem(b *Budget) budgetItem {
+	status := h.repo.GetBudgetStatus(b.TenantID, b.ID)
+	spent := 0.0
+	if status != nil {
+		spent = status.CurrentSpend
+	}
+	return budgetItem{
+		ID:             b.ID,
+		AgentID:        b.AgentID,
+		BudgetUSD:      b.LimitUSD,
+		SpentUSD:       spent,
+		Period:         b.PeriodType,
+		AlertThreshold: b.AlertThreshold,
+		Enabled:        b.Enabled,
+		CreatedAt:      b.CreatedAt.Format(time.RFC3339),
+	}
+}
 
 // Handler provides REST handlers for cost governance.
 type Handler struct {
@@ -51,8 +106,68 @@ func (h *Handler) handleBreakdown(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	breakdown := h.repo.GetBreakdown(tenantID, since)
-	httputil.WriteJSON(w, http.StatusOK, breakdown, tenantID)
+	groupBy := r.URL.Query().Get("group_by")
+	if groupBy == "" {
+		groupBy = "agent"
+	}
+
+	// Aggregate entries by group
+	type groupAgg struct {
+		costUSD    float64
+		tokensUsed int64
+		taskIDs    map[string]bool
+	}
+	groups := make(map[string]*groupAgg)
+
+	h.repo.mu.RLock()
+	for _, e := range h.repo.entries {
+		if e.TenantID != tenantID {
+			continue
+		}
+		if !since.IsZero() && e.Timestamp.Before(since) {
+			continue
+		}
+		var key string
+		switch groupBy {
+		case "agent":
+			key = e.AgentID
+		case "operation", "category":
+			key = e.Category
+		case "model":
+			key = e.Model
+		case "day":
+			key = e.Timestamp.Format("2006-01-02")
+		default:
+			key = e.AgentID
+		}
+		agg, ok := groups[key]
+		if !ok {
+			agg = &groupAgg{taskIDs: make(map[string]bool)}
+			groups[key] = agg
+		}
+		agg.costUSD += e.CostUSD
+		agg.tokensUsed += e.TokensUsed
+		if e.TaskID != "" {
+			agg.taskIDs[e.TaskID] = true
+		}
+	}
+	h.repo.mu.RUnlock()
+
+	items := make([]breakdownItem, 0, len(groups))
+	for key, agg := range groups {
+		items = append(items, breakdownItem{
+			Group:      key,
+			CostUSD:    agg.costUSD,
+			TokensUsed: agg.tokensUsed,
+			TaskCount:  len(agg.taskIDs),
+		})
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].CostUSD > items[j].CostUSD
+	})
+
+	httputil.WriteJSON(w, http.StatusOK, items, tenantID)
 }
 
 func (h *Handler) handleTrends(w http.ResponseWriter, r *http.Request) {
@@ -75,7 +190,17 @@ func (h *Handler) handleTrends(w http.ResponseWriter, r *http.Request) {
 	}
 
 	trends := h.repo.GetTrends(tenantID, days)
-	httputil.WriteJSON(w, http.StatusOK, trends, tenantID)
+
+	// Transform to frontend format (period → timestamp)
+	items := make([]trendItem, 0, len(trends))
+	for _, t := range trends {
+		items = append(items, trendItem{
+			Timestamp:  t.Period,
+			CostUSD:    t.CostUSD,
+			TokensUsed: t.TokensUsed,
+		})
+	}
+	httputil.WriteJSON(w, http.StatusOK, items, tenantID)
 }
 
 func (h *Handler) handleAgentCosts(w http.ResponseWriter, r *http.Request) {
@@ -118,13 +243,19 @@ func (h *Handler) handleBudgets(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		budgets := h.repo.ListBudgets(tenantID)
-		httputil.WriteJSON(w, http.StatusOK, budgets, tenantID)
+		items := make([]budgetItem, 0, len(budgets))
+		for _, b := range budgets {
+			items = append(items, h.toBudgetItem(b))
+		}
+		httputil.WriteJSON(w, http.StatusOK, items, tenantID)
 
 	case http.MethodPost:
 		var req struct {
 			AgentID        string  `json:"agent_id"`
 			Name           string  `json:"name"`
+			BudgetUSD      float64 `json:"budget_usd"`
 			LimitUSD       float64 `json:"limit_usd"`
+			Period         string  `json:"period"`
 			PeriodType     string  `json:"period_type"`
 			AlertThreshold float64 `json:"alert_threshold"`
 		}
@@ -132,15 +263,23 @@ func (h *Handler) handleBudgets(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
-		if req.Name == "" || req.LimitUSD <= 0 {
-			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "name and limit_usd (> 0) are required")
+		limit := req.BudgetUSD
+		if limit == 0 {
+			limit = req.LimitUSD
+		}
+		period := req.Period
+		if period == "" {
+			period = req.PeriodType
+		}
+		if req.Name == "" || limit <= 0 {
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "name and budget_usd (> 0) are required")
 			return
 		}
-		if req.PeriodType == "" {
-			req.PeriodType = "monthly"
+		if period == "" {
+			period = "monthly"
 		}
-		budget := h.repo.CreateBudget(tenantID, req.AgentID, req.Name, req.LimitUSD, req.PeriodType, req.AlertThreshold)
-		httputil.WriteJSON(w, http.StatusCreated, budget, tenantID)
+		budget := h.repo.CreateBudget(tenantID, req.AgentID, req.Name, limit, period, req.AlertThreshold)
+		httputil.WriteJSON(w, http.StatusCreated, h.toBudgetItem(budget), tenantID)
 
 	default:
 		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -184,11 +323,12 @@ func (h *Handler) handleBudgetByID(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusNotFound, "BUDGET_NOT_FOUND", "budget not found")
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, budget, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, h.toBudgetItem(budget), tenantID)
 
 	case http.MethodPut:
 		var req struct {
 			Name           string  `json:"name"`
+			BudgetUSD      float64 `json:"budget_usd"`
 			LimitUSD       float64 `json:"limit_usd"`
 			AlertThreshold float64 `json:"alert_threshold"`
 			Enabled        bool    `json:"enabled"`
@@ -197,12 +337,16 @@ func (h *Handler) handleBudgetByID(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
-		updated, err := h.repo.UpdateBudget(tenantID, budgetID, req.Name, req.LimitUSD, req.AlertThreshold, req.Enabled)
+		limit := req.BudgetUSD
+		if limit == 0 {
+			limit = req.LimitUSD
+		}
+		updated, err := h.repo.UpdateBudget(tenantID, budgetID, req.Name, limit, req.AlertThreshold, req.Enabled)
 		if err != nil {
 			httputil.WriteError(w, http.StatusNotFound, "BUDGET_NOT_FOUND", err.Error())
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, updated, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, h.toBudgetItem(updated), tenantID)
 
 	case http.MethodDelete:
 		if err := h.repo.DeleteBudget(tenantID, budgetID); err != nil {
@@ -229,5 +373,19 @@ func (h *Handler) handleAnomalies(w http.ResponseWriter, r *http.Request) {
 	}
 
 	anomalies := h.detector.DetectAnomalies(h.repo, tenantID)
-	httputil.WriteJSON(w, http.StatusOK, anomalies, tenantID)
+
+	// Transform to frontend format
+	items := make([]anomalyItem, 0, len(anomalies))
+	for _, a := range anomalies {
+		items = append(items, anomalyItem{
+			ID:          a.ID,
+			AgentID:     a.AgentID,
+			ExpectedUSD: a.ExpectedCost,
+			ActualUSD:   a.ActualCost,
+			Ratio:       a.Deviation / 100.0,
+			DetectedAt:  a.DetectedAt.Format(time.RFC3339),
+			Status:      "open",
+		})
+	}
+	httputil.WriteJSON(w, http.StatusOK, items, tenantID)
 }

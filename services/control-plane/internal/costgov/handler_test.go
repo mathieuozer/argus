@@ -54,28 +54,31 @@ func serveMux(h *Handler) *http.ServeMux {
 
 func TestHandleBreakdown_GET(t *testing.T) {
 	tests := []struct {
-		name       string
-		tenantID   string
-		seed       func(*Repository)
-		wantStatus int
-		wantTotal  float64
+		name           string
+		tenantID       string
+		seed           func(*Repository)
+		wantStatus     int
+		wantTotal      float64
+		wantGroupCount int
 	}{
 		{
-			name:       "empty breakdown when no costs exist",
-			tenantID:   "tenant-a",
-			seed:       func(r *Repository) {},
-			wantStatus: http.StatusOK,
-			wantTotal:  0,
+			name:           "empty breakdown when no costs exist",
+			tenantID:       "tenant-a",
+			seed:           func(r *Repository) {},
+			wantStatus:     http.StatusOK,
+			wantTotal:      0,
+			wantGroupCount: 0,
 		},
 		{
-			name:     "returns aggregated breakdown",
+			name:     "returns aggregated breakdown by agent",
 			tenantID: "tenant-a",
 			seed: func(r *Repository) {
 				r.RecordCost("tenant-a", "agent-1", "task-1", 0.50, 1000, "gpt-4", "inference")
 				r.RecordCost("tenant-a", "agent-2", "task-2", 0.25, 500, "gpt-3.5", "inference")
 			},
-			wantStatus: http.StatusOK,
-			wantTotal:  0.75,
+			wantStatus:     http.StatusOK,
+			wantTotal:      0.75,
+			wantGroupCount: 2,
 		},
 		{
 			name:     "tenant isolation",
@@ -84,8 +87,9 @@ func TestHandleBreakdown_GET(t *testing.T) {
 				r.RecordCost("tenant-a", "agent-1", "task-1", 1.00, 2000, "gpt-4", "inference")
 				r.RecordCost("tenant-b", "agent-2", "task-2", 5.00, 10000, "gpt-4", "inference")
 			},
-			wantStatus: http.StatusOK,
-			wantTotal:  1.00,
+			wantStatus:     http.StatusOK,
+			wantTotal:      1.00,
+			wantGroupCount: 1,
 		},
 	}
 
@@ -95,7 +99,7 @@ func TestHandleBreakdown_GET(t *testing.T) {
 			tc.seed(repo)
 			mux := serveMux(h)
 
-			req := requestWithTenant(http.MethodGet, "/api/v1/costs/breakdown", tc.tenantID, "")
+			req := requestWithTenant(http.MethodGet, "/api/v1/costs/breakdown?group_by=agent", tc.tenantID, "")
 			w := httptest.NewRecorder()
 			mux.ServeHTTP(w, req)
 
@@ -104,16 +108,33 @@ func TestHandleBreakdown_GET(t *testing.T) {
 			}
 
 			body := responseBody(t, w)
-			data, ok := body["data"].(map[string]interface{})
-			if !ok {
-				t.Fatalf("data is not an object: %T", body["data"])
+			data := body["data"]
+			if data == nil {
+				if tc.wantGroupCount != 0 {
+					t.Errorf("data is nil, want %d groups", tc.wantGroupCount)
+				}
+				return
 			}
-			total, ok := data["total_cost_usd"].(float64)
+			arr, ok := data.([]interface{})
 			if !ok {
-				t.Fatalf("total_cost_usd is not a float64: %T", data["total_cost_usd"])
+				t.Fatalf("data is not an array: %T", data)
+			}
+			if len(arr) != tc.wantGroupCount {
+				t.Errorf("group count = %d, want %d", len(arr), tc.wantGroupCount)
+			}
+			// Verify total cost across all groups
+			var total float64
+			for _, item := range arr {
+				m, ok := item.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				if cost, ok := m["cost_usd"].(float64); ok {
+					total += cost
+				}
 			}
 			if total != tc.wantTotal {
-				t.Errorf("total_cost_usd = %f, want %f", total, tc.wantTotal)
+				t.Errorf("total cost = %f, want %f", total, tc.wantTotal)
 			}
 		})
 	}

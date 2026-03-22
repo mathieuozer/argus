@@ -201,43 +201,32 @@ func main() {
 				httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 				return
 			}
-			agent, err := agentRegistry.Get(tenantID, agentID)
-			if err != nil {
+			if _, err := agentRegistry.Get(tenantID, agentID); err != nil {
 				httputil.WriteError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
 				return
 			}
-			// Generate time series data from tasks
-			agentTasks := sm.ListByAgent(tenantID, agentID)
-			var completedCount, failedCount int
-			var totalCost float64
-			for _, t := range agentTasks {
-				if t.Status == statemachine.StatusCompleted {
-					completedCount++
-					totalCost += t.CostUSD
-				} else if t.Status == statemachine.StatusFailed {
-					failedCount++
-				}
-			}
+			// Generate time series in AgentTimeSeries format: {latency_p50, latency_p99, token_rate, error_rate, cost}
 			now := time.Now()
-			points := make([]map[string]interface{}, 0, 24)
+			latencyP50 := make([]map[string]interface{}, 0, 24)
+			latencyP99 := make([]map[string]interface{}, 0, 24)
+			tokenRate := make([]map[string]interface{}, 0, 24)
+			errorRate := make([]map[string]interface{}, 0, 24)
+			costSeries := make([]map[string]interface{}, 0, 24)
+
 			for i := 23; i >= 0; i-- {
-				ts := now.Add(-time.Duration(i) * time.Hour)
-				points = append(points, map[string]interface{}{
-					"timestamp":  ts.Format(time.RFC3339),
-					"latency_ms": 150 + (i%5)*30,
-					"error_rate": float64(failedCount) / float64(max(1, completedCount+failedCount)) * 100,
-					"throughput": max(1, completedCount) * (24 - i),
-				})
+				ts := now.Add(-time.Duration(i) * time.Hour).Format(time.RFC3339)
+				latencyP50 = append(latencyP50, map[string]interface{}{"timestamp": ts, "value": float64(120 + (i%5)*25)})
+				latencyP99 = append(latencyP99, map[string]interface{}{"timestamp": ts, "value": float64(280 + (i%5)*45)})
+				tokenRate = append(tokenRate, map[string]interface{}{"timestamp": ts, "value": float64(40 + (i%3)*12)})
+				errorRate = append(errorRate, map[string]interface{}{"timestamp": ts, "value": 0.015 + float64(i%7)*0.004})
+				costSeries = append(costSeries, map[string]interface{}{"timestamp": ts, "value": 0.04 + float64(i%4)*0.018})
 			}
 			httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
-				"agent_id":        agent.ID,
-				"points":          points,
-				"tasks_completed": completedCount,
-				"tasks_failed":    failedCount,
-				"total_cost_usd":  totalCost,
-				"total_tokens":    int64(completedCount) * 1500,
-				"avg_latency_ms":  185.0,
-				"uptime_pct":      99.5,
+				"latency_p50": latencyP50,
+				"latency_p99": latencyP99,
+				"token_rate":  tokenRate,
+				"error_rate":  errorRate,
+				"cost":        costSeries,
 			}, tenantID)
 
 		case "spans":
@@ -254,7 +243,7 @@ func main() {
 			httputil.WriteJSON(w, http.StatusOK, []interface{}{}, tenantID)
 
 		case "":
-			// No sub-resource — get the agent itself
+			// No sub-resource — get the agent itself with computed stats
 			switch r.Method {
 			case http.MethodGet:
 				agent, err := agentRegistry.Get(tenantID, agentID)
@@ -262,7 +251,43 @@ func main() {
 					httputil.WriteError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
 					return
 				}
-				httputil.WriteJSON(w, http.StatusOK, agent, tenantID)
+				// Compute task stats for AgentDetail response
+				detailTasks := sm.ListByAgent(tenantID, agentID)
+				var dCompleted, dFailed int
+				var dCost float64
+				for _, dt := range detailTasks {
+					if dt.Status == statemachine.StatusCompleted {
+						dCompleted++
+						dCost += dt.CostUSD
+					} else if dt.Status == statemachine.StatusFailed {
+						dFailed++
+					}
+				}
+				dTokens := int64(dCompleted) * 1500
+				dLatency := 185.0
+				dUptime := 99.5
+				if agent.Status == registry.StatusDegraded {
+					dUptime = 97.2
+				} else if agent.Status == registry.StatusFailed {
+					dUptime = 85.0
+				}
+				httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
+					"id":              agent.ID,
+					"tenant_id":       agent.TenantID,
+					"version":         agent.Version,
+					"framework":       agent.Framework,
+					"capabilities":    agent.Capabilities,
+					"status":          agent.Status,
+					"svid_uri":        agent.SVIDURI,
+					"last_seen":       agent.LastSeen,
+					"node_id":         agent.NodeID,
+					"tasks_completed": dCompleted,
+					"tasks_failed":    dFailed,
+					"total_cost_usd":  dCost,
+					"total_tokens":    dTokens,
+					"avg_latency_ms":  dLatency,
+					"uptime_pct":      dUptime,
+				}, tenantID)
 			default:
 				httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			}
@@ -442,12 +467,14 @@ func seedDemoData(reg *registry.Registry, sm *statemachine.StateMachine, costs *
 	demoAgents := []registry.RegisterRequest{
 		{AgentID: "budget-reconciler", Version: "1.2.0", Framework: "langchain", Capabilities: []string{"read:budget_db", "write:report_store"}, NodeID: "node-1"},
 		{AgentID: "doc-summarizer", Version: "2.0.1", Framework: "autogen", Capabilities: []string{"read:documents", "write:summaries"}, NodeID: "node-1"},
+		{AgentID: "document-analyzer", Version: "1.3.0", Framework: "langchain", Capabilities: []string{"read:documents", "analyze:content", "write:reports"}, NodeID: "node-1"},
 		{AgentID: "ticket-classifier", Version: "1.0.0", Framework: "crewai", Capabilities: []string{"read:tickets", "write:classifications"}, NodeID: "node-2"},
 		{AgentID: "code-reviewer", Version: "3.1.0", Framework: "custom", Capabilities: []string{"read:repos", "write:reviews"}, NodeID: "node-2"},
 		{AgentID: "data-pipeline", Version: "1.5.2", Framework: "langchain", Capabilities: []string{"read:raw_data", "write:processed_data", "execute:transforms"}, NodeID: "node-3"},
 	}
 
 	statuses := []registry.AgentStatus{
+		registry.StatusHealthy,
 		registry.StatusHealthy,
 		registry.StatusHealthy,
 		registry.StatusDegraded,
@@ -470,6 +497,8 @@ func seedDemoData(reg *registry.Registry, sm *statemachine.StateMachine, costs *
 		{"budget-reconciler", statemachine.StatusCompleted, 0.45},
 		{"budget-reconciler", statemachine.StatusCompleted, 0.32},
 		{"doc-summarizer", statemachine.StatusRunning, 0.0},
+		{"document-analyzer", statemachine.StatusCompleted, 0.55},
+		{"document-analyzer", statemachine.StatusCompleted, 0.38},
 		{"ticket-classifier", statemachine.StatusFailed, 0.12},
 		{"code-reviewer", statemachine.StatusCompleted, 1.20},
 		{"data-pipeline", statemachine.StatusCompleted, 0.78},
