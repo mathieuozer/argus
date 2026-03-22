@@ -241,6 +241,145 @@ func main() {
 		})
 	})
 
+	// Login endpoint for the dashboard (dev mode: accepts any username/password)
+	mux.HandleFunc("/api/v1/auth/login", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+
+		var req struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+			TenantID string `json:"tenantId"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			return
+		}
+
+		if req.Username == "" {
+			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "username is required")
+			return
+		}
+		if req.TenantID == "" {
+			req.TenantID = "default"
+		}
+
+		role := auth.RoleAdmin
+		claims := &auth.Claims{
+			Sub:      req.Username,
+			TenantID: req.TenantID,
+			Role:     role,
+			Iat:      time.Now().Unix(),
+			Exp:      time.Now().Add(24 * time.Hour).Unix(),
+		}
+
+		token, err := jwtAuth.GenerateToken(claims)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
+			return
+		}
+
+		refreshClaims := &auth.Claims{
+			Sub:      req.Username,
+			TenantID: req.TenantID,
+			Role:     role,
+			Iat:      time.Now().Unix(),
+			Exp:      time.Now().Add(7 * 24 * time.Hour).Unix(),
+		}
+		refreshToken, err := jwtAuth.GenerateToken(refreshClaims)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate refresh token")
+			return
+		}
+
+		auditLog.Write(req.TenantID, req.Username, "login", "auth/login", "role: "+string(role))
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"data": map[string]interface{}{
+				"token":        token,
+				"refreshToken": refreshToken,
+				"user": map[string]interface{}{
+					"id":         req.Username,
+					"username":   req.Username,
+					"email":      req.Username + "@argus.dev",
+					"tenantId":   req.TenantID,
+					"tenantName": req.TenantID,
+					"role":       string(role),
+				},
+				"expiresAt": time.Now().Add(24 * time.Hour).Format(time.RFC3339),
+			},
+		})
+	})
+
+	// Token refresh endpoint for the dashboard
+	mux.HandleFunc("/api/v1/auth/refresh", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+
+		var req struct {
+			RefreshToken string `json:"refreshToken"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			return
+		}
+
+		oldClaims, err := jwtAuth.ValidateToken(req.RefreshToken)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid refresh token")
+			return
+		}
+
+		claims := &auth.Claims{
+			Sub:      oldClaims.Sub,
+			TenantID: oldClaims.TenantID,
+			Role:     oldClaims.Role,
+			Iat:      time.Now().Unix(),
+			Exp:      time.Now().Add(24 * time.Hour).Unix(),
+		}
+
+		token, err := jwtAuth.GenerateToken(claims)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
+			return
+		}
+
+		refreshClaims := &auth.Claims{
+			Sub:      oldClaims.Sub,
+			TenantID: oldClaims.TenantID,
+			Role:     oldClaims.Role,
+			Iat:      time.Now().Unix(),
+			Exp:      time.Now().Add(7 * 24 * time.Hour).Unix(),
+		}
+		newRefresh, err := jwtAuth.GenerateToken(refreshClaims)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate refresh token")
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"data": map[string]interface{}{
+				"token":        token,
+				"refreshToken": newRefresh,
+				"user": map[string]interface{}{
+					"id":         oldClaims.Sub,
+					"username":   oldClaims.Sub,
+					"email":      oldClaims.Sub + "@argus.dev",
+					"tenantId":   oldClaims.TenantID,
+					"tenantName": oldClaims.TenantID,
+					"role":       string(oldClaims.Role),
+				},
+				"expiresAt": time.Now().Add(24 * time.Hour).Format(time.RFC3339),
+			},
+		})
+	})
+
 	// Policy endpoints
 	mux.Handle("/api/v1/policies", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID, _ := tenancy.FromContext(r.Context())
@@ -307,7 +446,7 @@ func main() {
 	tenantMw := tenantMiddlewareWithExclusions(
 		middleware.TenantHTTP,
 		"/health",
-		"/api/v1/auth/token",
+		"/api/v1/auth/",
 	)
 	handler := middleware.CORS(
 		jwtAuth.Middleware(
