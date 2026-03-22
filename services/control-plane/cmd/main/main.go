@@ -8,13 +8,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"reflect"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/argus-platform/argus/pkg/config"
 	"github.com/argus-platform/argus/pkg/database"
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/pkg/tenancy"
@@ -203,7 +203,7 @@ func main() {
 	// Auth endpoint - generate tokens (dev mode)
 	mux.HandleFunc("/api/v1/auth/token", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w,http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -213,7 +213,7 @@ func main() {
 			Role     string `json:"role"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 
@@ -227,7 +227,7 @@ func main() {
 
 		token, err := jwtAuth.GenerateToken(claims)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
+			httputil.WriteError(w,http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
 			return
 		}
 
@@ -245,7 +245,7 @@ func main() {
 	// Login endpoint for the dashboard (dev mode: accepts any username/password)
 	mux.HandleFunc("/api/v1/auth/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w,http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -255,12 +255,12 @@ func main() {
 			TenantID string `json:"tenantId"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 
 		if req.Username == "" {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "username is required")
+			httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "username is required")
 			return
 		}
 		if req.TenantID == "" {
@@ -278,7 +278,7 @@ func main() {
 
 		token, err := jwtAuth.GenerateToken(claims)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
+			httputil.WriteError(w,http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
 			return
 		}
 
@@ -291,7 +291,7 @@ func main() {
 		}
 		refreshToken, err := jwtAuth.GenerateToken(refreshClaims)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate refresh token")
+			httputil.WriteError(w,http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate refresh token")
 			return
 		}
 
@@ -318,7 +318,7 @@ func main() {
 	// Token refresh endpoint for the dashboard
 	mux.HandleFunc("/api/v1/auth/refresh", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w,http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -326,13 +326,13 @@ func main() {
 			RefreshToken string `json:"refreshToken"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 
 		oldClaims, err := jwtAuth.ValidateToken(req.RefreshToken)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid refresh token")
+			httputil.WriteError(w,http.StatusUnauthorized, "UNAUTHORIZED", "invalid refresh token")
 			return
 		}
 
@@ -346,7 +346,7 @@ func main() {
 
 		token, err := jwtAuth.GenerateToken(claims)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
+			httputil.WriteError(w,http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
 			return
 		}
 
@@ -359,7 +359,7 @@ func main() {
 		}
 		newRefresh, err := jwtAuth.GenerateToken(refreshClaims)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate refresh token")
+			httputil.WriteError(w,http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate refresh token")
 			return
 		}
 
@@ -387,18 +387,18 @@ func main() {
 		switch r.Method {
 		case http.MethodGet:
 			rules := policyEngine.ListRules(tenantID)
-			writeJSON(w, http.StatusOK, rules, tenantID)
+			httputil.WriteJSON(w,http.StatusOK, rules, tenantID)
 		case http.MethodPost:
 			var rule policy.Rule
 			if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
-				writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+				httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 				return
 			}
 			policyEngine.AddRule(tenantID, &rule)
 			auditLog.Write(tenantID, "system", "create_policy", "policy/"+rule.ID, "")
-			writeJSON(w, http.StatusCreated, rule, tenantID)
+			httputil.WriteJSON(w,http.StatusCreated, rule, tenantID)
 		default:
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w,http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		}
 	})))
 
@@ -406,7 +406,7 @@ func main() {
 	mux.Handle("/api/v1/policies/evaluate", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID, _ := tenancy.FromContext(r.Context())
 		if r.Method != http.MethodPost {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w,http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -416,29 +416,82 @@ func main() {
 			Resource string `json:"resource"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 
 		allowed, err := policyEngine.Evaluate(tenantID, req.Subject, policy.Action(req.Action), req.Resource)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			httputil.WriteError(w,http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 			return
 		}
 
-		writeJSON(w, http.StatusOK, map[string]bool{"allowed": allowed}, tenantID)
+		httputil.WriteJSON(w,http.StatusOK, map[string]bool{"allowed": allowed}, tenantID)
 	})))
 
 	// Metrics endpoint
 	mux.Handle("/api/v1/metrics", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID, _ := tenancy.FromContext(r.Context())
-		writeJSON(w, http.StatusOK, map[string]interface{}{
+		httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 			"total_agents": 0,
 			"active_tasks": 0,
 			"total_cost":   0.0,
 			"alert_count":  alertRouter.Count(tenantID),
 		}, tenantID)
 	})))
+
+	// Agents endpoint (list agents for dashboard)
+	mux.HandleFunc("/api/v1/agents", func(w http.ResponseWriter, r *http.Request) {
+		tenantID, err := tenancy.FromContext(r.Context())
+		if err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			httputil.WriteJSON(w, http.StatusOK, []interface{}{}, tenantID)
+		default:
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		}
+	})
+
+	// Tasks endpoint (list/create tasks for dashboard)
+	mux.HandleFunc("/api/v1/tasks", func(w http.ResponseWriter, r *http.Request) {
+		tenantID, err := tenancy.FromContext(r.Context())
+		if err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			httputil.WriteJSON(w, http.StatusOK, []interface{}{}, tenantID)
+		case http.MethodPost:
+			var req struct {
+				AgentID   string `json:"agent_id"`
+				InputHash string `json:"input_hash"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+				return
+			}
+			task := map[string]interface{}{
+				"id":           "task-" + time.Now().Format("20060102150405"),
+				"tenant_id":    tenantID,
+				"agent_id":     req.AgentID,
+				"status":       "pending",
+				"input_hash":   req.InputHash,
+				"started_at":   time.Now().Format(time.RFC3339),
+				"completed_at": nil,
+				"cost_usd":     0.0,
+				"tokens_used":  0,
+			}
+			httputil.WriteJSON(w, http.StatusCreated, task, tenantID)
+		default:
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		}
+	})
 
 	// Wrap with auth + tenant + logging middleware.
 	// TenantHTTP extracts X-Tenant-ID header into tenancy context.
@@ -491,37 +544,6 @@ func main() {
 	}
 
 	_ = cfg
-}
-
-func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"data": ensureNotNil(data),
-		"meta": map[string]string{"tenant_id": tenantID},
-	})
-}
-
-func ensureNotNil(v interface{}) interface{} {
-	if v == nil {
-		return []interface{}{}
-	}
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Slice && rv.IsNil() {
-		return []interface{}{}
-	}
-	return v
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": map[string]string{
-			"code":    code,
-			"message": message,
-		},
-	})
 }
 
 // tenantMiddlewareWithExclusions wraps a tenant middleware so that certain

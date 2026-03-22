@@ -1,12 +1,11 @@
 package rag
 
 import (
-	"encoding/json"
 	"net/http"
-	"reflect"
 	"sync"
 	"time"
 
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -70,7 +69,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 func (h *Handler) ListRetrievals(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
 		return
 	}
 	agentID := r.URL.Query().Get("agent_id")
@@ -89,13 +88,13 @@ func (h *Handler) ListRetrievals(w http.ResponseWriter, r *http.Request) {
 	if retrievals == nil {
 		retrievals = []*Retrieval{}
 	}
-	writeJSON(w, http.StatusOK, retrievals)
+	httputil.WriteJSON(w, http.StatusOK, retrievals, "")
 }
 
 func (h *Handler) ListSources(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
 		return
 	}
 
@@ -111,13 +110,13 @@ func (h *Handler) ListSources(w http.ResponseWriter, r *http.Request) {
 	if sources == nil {
 		sources = []*Source{}
 	}
-	writeJSON(w, http.StatusOK, sources)
+	httputil.WriteJSON(w, http.StatusOK, sources, "")
 }
 
 func (h *Handler) GetQuality(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
 		return
 	}
 
@@ -148,28 +147,5 @@ func (h *Handler) GetQuality(w http.ResponseWriter, r *http.Request) {
 	if trends == nil {
 		trends = []QualityTrend{}
 	}
-	writeJSON(w, http.StatusOK, trends)
-}
-
-func writeJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{"data": ensureNotNil(data), "meta": map[string]any{}})
-}
-
-func ensureNotNil(v interface{}) interface{} {
-	if v == nil {
-		return []interface{}{}
-	}
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Slice && rv.IsNil() {
-		return []interface{}{}
-	}
-	return v
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"code": code, "message": message}})
+	httputil.WriteJSON(w, http.StatusOK, trends, "")
 }

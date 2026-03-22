@@ -3,10 +3,10 @@ package guardrails
 import (
 	"encoding/json"
 	"net/http"
-	"reflect"
 	"sync"
 	"time"
 
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -84,13 +84,13 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 func (h *Handler) CreateRule(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
+		httputil.WriteError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
 		return
 	}
 
 	var rule Rule
 	if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		httputil.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
 		return
 	}
 
@@ -102,14 +102,14 @@ func (h *Handler) CreateRule(w http.ResponseWriter, r *http.Request) {
 	h.repo.rules[rule.ID] = &rule
 	h.repo.mu.Unlock()
 
-	writeJSON(w, http.StatusCreated, rule)
+	httputil.WriteJSON(w, http.StatusCreated, rule, "")
 }
 
 // ListRules handles GET /api/v1/guardrails/rules.
 func (h *Handler) ListRules(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
+		httputil.WriteError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
 		return
 	}
 
@@ -126,14 +126,14 @@ func (h *Handler) ListRules(w http.ResponseWriter, r *http.Request) {
 		rules = []*Rule{}
 	}
 
-	writeJSON(w, http.StatusOK, rules)
+	httputil.WriteJSON(w, http.StatusOK, rules, "")
 }
 
 // ListViolations handles GET /api/v1/guardrails/violations.
 func (h *Handler) ListViolations(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
+		httputil.WriteError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
 		return
 	}
 
@@ -150,14 +150,14 @@ func (h *Handler) ListViolations(w http.ResponseWriter, r *http.Request) {
 		violations = []*Violation{}
 	}
 
-	writeJSON(w, http.StatusOK, violations)
+	httputil.WriteJSON(w, http.StatusOK, violations, "")
 }
 
 // GetStats handles GET /api/v1/guardrails/stats.
 func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
+		httputil.WriteError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
 		return
 	}
 
@@ -182,36 +182,5 @@ func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 		stats.PassRate = 1.0
 	}
 
-	writeJSON(w, http.StatusOK, stats)
-}
-
-func writeJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"data": ensureNotNil(data),
-		"meta": map[string]any{},
-	})
-}
-
-func ensureNotNil(v interface{}) interface{} {
-	if v == nil {
-		return []interface{}{}
-	}
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Slice && rv.IsNil() {
-		return []interface{}{}
-	}
-	return v
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"error": map[string]any{
-			"code":    code,
-			"message": message,
-		},
-	})
+	httputil.WriteJSON(w, http.StatusOK, stats, "")
 }

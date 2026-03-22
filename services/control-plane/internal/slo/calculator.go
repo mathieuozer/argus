@@ -125,6 +125,61 @@ func (c *Calculator) computeStatus(slo *SLO, measurements []*Measurement, window
 	}
 }
 
+// ErrorBudgetPoint represents a single data point in an error budget time series.
+type ErrorBudgetPoint struct {
+	Timestamp string  `json:"timestamp"`
+	Remaining float64 `json:"remaining"`
+}
+
+// CalculateErrorBudget returns the error budget time series for an SLO.
+func (c *Calculator) CalculateErrorBudget(tenantID, sloID string) []ErrorBudgetPoint {
+	slo := c.repo.GetSLO(tenantID, sloID)
+	if slo == nil {
+		return []ErrorBudgetPoint{}
+	}
+
+	windowDuration := parseWindow(slo.Window)
+	windowEnd := time.Now()
+	windowStart := windowEnd.Add(-windowDuration)
+	measurements := c.repo.GetMeasurements(tenantID, sloID, windowStart)
+
+	if len(measurements) == 0 {
+		// Return a flat budget line at 100% remaining
+		points := make([]ErrorBudgetPoint, 0, 7)
+		step := windowDuration / 7
+		for i := 0; i < 7; i++ {
+			t := windowStart.Add(step * time.Duration(i))
+			points = append(points, ErrorBudgetPoint{
+				Timestamp: t.Format(time.RFC3339),
+				Remaining: 100.0,
+			})
+		}
+		return points
+	}
+
+	// Build cumulative error budget from measurements
+	errorBudgetTotal := (1.0 - slo.Target/100.0) * float64(len(measurements)) * 100
+	if errorBudgetTotal <= 0 {
+		errorBudgetTotal = 1
+	}
+
+	points := make([]ErrorBudgetPoint, 0, len(measurements))
+	var cumulativeBad float64
+	for _, m := range measurements {
+		cumulativeBad += float64(m.Total - m.Good)
+		remaining := ((errorBudgetTotal - cumulativeBad) / errorBudgetTotal) * 100
+		if remaining < 0 {
+			remaining = 0
+		}
+		points = append(points, ErrorBudgetPoint{
+			Timestamp: m.Timestamp.Format(time.RFC3339),
+			Remaining: remaining,
+		})
+	}
+
+	return points
+}
+
 // parseWindow converts a window string like "7d", "30d", "90d" to a duration.
 func parseWindow(window string) time.Duration {
 	switch window {

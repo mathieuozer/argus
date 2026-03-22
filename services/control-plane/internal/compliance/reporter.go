@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"reflect"
 	"sync"
 	"time"
 
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -67,7 +67,7 @@ func (h *ReportHandler) RegisterRoutes(mux *http.ServeMux) {
 func (h *ReportHandler) GenerateReport(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Missing tenant context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Missing tenant context")
 		return
 	}
 
@@ -77,13 +77,13 @@ func (h *ReportHandler) GenerateReport(w http.ResponseWriter, r *http.Request) {
 		PeriodEnd   string `json:"period_end"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		httputil.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
 		return
 	}
 
 	profile := GetProfile(req.ProfileID)
 	if profile == nil {
-		writeError(w, http.StatusBadRequest, "INVALID_PROFILE", "Unknown compliance profile")
+		httputil.WriteError(w, http.StatusBadRequest, "INVALID_PROFILE", "Unknown compliance profile")
 		return
 	}
 
@@ -114,14 +114,14 @@ func (h *ReportHandler) GenerateReport(w http.ResponseWriter, r *http.Request) {
 	h.repo.reports[report.ID] = report
 	h.repo.mu.Unlock()
 
-	writeJSON(w, http.StatusCreated, report)
+	httputil.WriteJSON(w, http.StatusCreated, report, "")
 }
 
 // ListReports returns all reports for the requesting tenant.
 func (h *ReportHandler) ListReports(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Missing tenant context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Missing tenant context")
 		return
 	}
 
@@ -137,14 +137,14 @@ func (h *ReportHandler) ListReports(w http.ResponseWriter, r *http.Request) {
 	if reports == nil {
 		reports = []*Report{}
 	}
-	writeJSON(w, http.StatusOK, reports)
+	httputil.WriteJSON(w, http.StatusOK, reports, "")
 }
 
 // GetReport returns a single report by ID, enforcing tenant isolation.
 func (h *ReportHandler) GetReport(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Missing tenant context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Missing tenant context")
 		return
 	}
 	id := r.PathValue("id")
@@ -154,10 +154,10 @@ func (h *ReportHandler) GetReport(w http.ResponseWriter, r *http.Request) {
 	h.repo.mu.RUnlock()
 
 	if !ok || report.TenantID != tenantID {
-		writeError(w, http.StatusNotFound, "NOT_FOUND", "Report not found")
+		httputil.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Report not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, report)
+	httputil.WriteJSON(w, http.StatusOK, report, "")
 }
 
 func generateSections(profile *Profile) []Section {
@@ -213,27 +213,4 @@ func generateSections(profile *Profile) []Section {
 	}
 
 	return sections
-}
-
-func writeJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{"data": ensureNotNil(data), "meta": map[string]any{}})
-}
-
-func ensureNotNil(v interface{}) interface{} {
-	if v == nil {
-		return []interface{}{}
-	}
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Slice && rv.IsNil() {
-		return []interface{}{}
-	}
-	return v
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"code": code, "message": message}})
 }

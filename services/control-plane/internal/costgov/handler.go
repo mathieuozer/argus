@@ -3,11 +3,11 @@ package costgov
 import (
 	"encoding/json"
 	"net/http"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -35,12 +35,12 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 func (h *Handler) handleBreakdown(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
 		return
 	}
 
 	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
 
@@ -52,18 +52,18 @@ func (h *Handler) handleBreakdown(w http.ResponseWriter, r *http.Request) {
 	}
 
 	breakdown := h.repo.GetBreakdown(tenantID, since)
-	writeJSON(w, http.StatusOK, breakdown, tenantID)
+	httputil.WriteJSON(w, http.StatusOK, breakdown, tenantID)
 }
 
 func (h *Handler) handleTrends(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
 		return
 	}
 
 	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
 
@@ -75,24 +75,24 @@ func (h *Handler) handleTrends(w http.ResponseWriter, r *http.Request) {
 	}
 
 	trends := h.repo.GetTrends(tenantID, days)
-	writeJSON(w, http.StatusOK, trends, tenantID)
+	httputil.WriteJSON(w, http.StatusOK, trends, tenantID)
 }
 
 func (h *Handler) handleAgentCosts(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
 		return
 	}
 
 	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
 
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/costs/agents/"), "/")
 	if len(parts) == 0 || parts[0] == "" {
-		writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "agent ID required")
+		httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "agent ID required")
 		return
 	}
 	agentID := parts[0]
@@ -105,20 +105,20 @@ func (h *Handler) handleAgentCosts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	costs := h.repo.GetAgentCosts(tenantID, agentID, limit)
-	writeJSON(w, http.StatusOK, costs, tenantID)
+	httputil.WriteJSON(w, http.StatusOK, costs, tenantID)
 }
 
 func (h *Handler) handleBudgets(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
 		return
 	}
 
 	switch r.Method {
 	case http.MethodGet:
 		budgets := h.repo.ListBudgets(tenantID)
-		writeJSON(w, http.StatusOK, budgets, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, budgets, tenantID)
 
 	case http.MethodPost:
 		var req struct {
@@ -129,35 +129,35 @@ func (h *Handler) handleBudgets(w http.ResponseWriter, r *http.Request) {
 			AlertThreshold float64 `json:"alert_threshold"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 		if req.Name == "" || req.LimitUSD <= 0 {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "name and limit_usd (> 0) are required")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "name and limit_usd (> 0) are required")
 			return
 		}
 		if req.PeriodType == "" {
 			req.PeriodType = "monthly"
 		}
 		budget := h.repo.CreateBudget(tenantID, req.AgentID, req.Name, req.LimitUSD, req.PeriodType, req.AlertThreshold)
-		writeJSON(w, http.StatusCreated, budget, tenantID)
+		httputil.WriteJSON(w, http.StatusCreated, budget, tenantID)
 
 	default:
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 	}
 }
 
 func (h *Handler) handleBudgetByID(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
 		return
 	}
 
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/costs/budgets/")
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 || parts[0] == "" {
-		writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "budget ID required")
+		httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "budget ID required")
 		return
 	}
 	budgetID := parts[0]
@@ -165,15 +165,15 @@ func (h *Handler) handleBudgetByID(w http.ResponseWriter, r *http.Request) {
 	// Handle status sub-resource: /api/v1/costs/budgets/{id}/status
 	if len(parts) > 1 && parts[1] == "status" {
 		if r.Method != http.MethodGet {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 		status := h.repo.GetBudgetStatus(tenantID, budgetID)
 		if status == nil {
-			writeError(w, http.StatusNotFound, "BUDGET_NOT_FOUND", "budget not found")
+			httputil.WriteError(w, http.StatusNotFound, "BUDGET_NOT_FOUND", "budget not found")
 			return
 		}
-		writeJSON(w, http.StatusOK, status, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, status, tenantID)
 		return
 	}
 
@@ -181,10 +181,10 @@ func (h *Handler) handleBudgetByID(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		budget := h.repo.GetBudget(tenantID, budgetID)
 		if budget == nil {
-			writeError(w, http.StatusNotFound, "BUDGET_NOT_FOUND", "budget not found")
+			httputil.WriteError(w, http.StatusNotFound, "BUDGET_NOT_FOUND", "budget not found")
 			return
 		}
-		writeJSON(w, http.StatusOK, budget, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, budget, tenantID)
 
 	case http.MethodPut:
 		var req struct {
@@ -194,71 +194,40 @@ func (h *Handler) handleBudgetByID(w http.ResponseWriter, r *http.Request) {
 			Enabled        bool    `json:"enabled"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 		updated, err := h.repo.UpdateBudget(tenantID, budgetID, req.Name, req.LimitUSD, req.AlertThreshold, req.Enabled)
 		if err != nil {
-			writeError(w, http.StatusNotFound, "BUDGET_NOT_FOUND", err.Error())
+			httputil.WriteError(w, http.StatusNotFound, "BUDGET_NOT_FOUND", err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, updated, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, updated, tenantID)
 
 	case http.MethodDelete:
 		if err := h.repo.DeleteBudget(tenantID, budgetID); err != nil {
-			writeError(w, http.StatusNotFound, "BUDGET_NOT_FOUND", err.Error())
+			httputil.WriteError(w, http.StatusNotFound, "BUDGET_NOT_FOUND", err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"}, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"}, tenantID)
 
 	default:
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 	}
 }
 
 func (h *Handler) handleAnomalies(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
 		return
 	}
 
 	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
 
 	anomalies := h.detector.DetectAnomalies(h.repo, tenantID)
-	writeJSON(w, http.StatusOK, anomalies, tenantID)
-}
-
-func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"data": ensureNotNil(data),
-		"meta": map[string]string{"tenant_id": tenantID},
-	})
-}
-
-func ensureNotNil(v interface{}) interface{} {
-	if v == nil {
-		return []interface{}{}
-	}
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Slice && rv.IsNil() {
-		return []interface{}{}
-	}
-	return v
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": map[string]string{
-			"code":    code,
-			"message": message,
-		},
-	})
+	httputil.WriteJSON(w, http.StatusOK, anomalies, tenantID)
 }

@@ -3,10 +3,10 @@ package prompts
 import (
 	"encoding/json"
 	"net/http"
-	"reflect"
 	"sync"
 	"time"
 
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -73,13 +73,13 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 func (h *Handler) CreatePrompt(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
 		return
 	}
 
 	var prompt Prompt
 	if err := json.NewDecoder(r.Body).Decode(&prompt); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		httputil.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
 		return
 	}
 
@@ -93,13 +93,13 @@ func (h *Handler) CreatePrompt(w http.ResponseWriter, r *http.Request) {
 	h.repo.prompts[prompt.ID] = &prompt
 	h.repo.mu.Unlock()
 
-	writeJSON(w, http.StatusCreated, prompt)
+	httputil.WriteJSON(w, http.StatusCreated, prompt, "")
 }
 
 func (h *Handler) ListPrompts(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
 		return
 	}
 
@@ -115,13 +115,13 @@ func (h *Handler) ListPrompts(w http.ResponseWriter, r *http.Request) {
 	if prompts == nil {
 		prompts = []*Prompt{}
 	}
-	writeJSON(w, http.StatusOK, prompts)
+	httputil.WriteJSON(w, http.StatusOK, prompts, "")
 }
 
 func (h *Handler) GetPrompt(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
 		return
 	}
 	id := r.PathValue("id")
@@ -131,16 +131,16 @@ func (h *Handler) GetPrompt(w http.ResponseWriter, r *http.Request) {
 	h.repo.mu.RUnlock()
 
 	if !ok || prompt.TenantID != tenantID {
-		writeError(w, http.StatusNotFound, "NOT_FOUND", "Prompt not found")
+		httputil.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Prompt not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, prompt)
+	httputil.WriteJSON(w, http.StatusOK, prompt, "")
 }
 
 func (h *Handler) CreateVersion(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
 		return
 	}
 	promptID := r.PathValue("id")
@@ -150,13 +150,13 @@ func (h *Handler) CreateVersion(w http.ResponseWriter, r *http.Request) {
 
 	prompt, ok := h.repo.prompts[promptID]
 	if !ok || prompt.TenantID != tenantID {
-		writeError(w, http.StatusNotFound, "NOT_FOUND", "Prompt not found")
+		httputil.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Prompt not found")
 		return
 	}
 
 	var version PromptVersion
 	if err := json.NewDecoder(r.Body).Decode(&version); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		httputil.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
 		return
 	}
 
@@ -168,13 +168,13 @@ func (h *Handler) CreateVersion(w http.ResponseWriter, r *http.Request) {
 
 	h.repo.versions[promptID] = append(h.repo.versions[promptID], &version)
 
-	writeJSON(w, http.StatusCreated, version)
+	httputil.WriteJSON(w, http.StatusCreated, version, "")
 }
 
 func (h *Handler) ListVersions(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
 		return
 	}
 	promptID := r.PathValue("id")
@@ -183,7 +183,7 @@ func (h *Handler) ListVersions(w http.ResponseWriter, r *http.Request) {
 	prompt, ok := h.repo.prompts[promptID]
 	if !ok || prompt.TenantID != tenantID {
 		h.repo.mu.RUnlock()
-		writeError(w, http.StatusNotFound, "NOT_FOUND", "Prompt not found")
+		httputil.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Prompt not found")
 		return
 	}
 	versions := h.repo.versions[promptID]
@@ -192,13 +192,13 @@ func (h *Handler) ListVersions(w http.ResponseWriter, r *http.Request) {
 	if versions == nil {
 		versions = []*PromptVersion{}
 	}
-	writeJSON(w, http.StatusOK, versions)
+	httputil.WriteJSON(w, http.StatusOK, versions, "")
 }
 
 func (h *Handler) SetActiveVersion(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
 		return
 	}
 	promptID := r.PathValue("id")
@@ -207,7 +207,7 @@ func (h *Handler) SetActiveVersion(w http.ResponseWriter, r *http.Request) {
 		Version int `json:"version"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		httputil.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
 		return
 	}
 
@@ -215,20 +215,20 @@ func (h *Handler) SetActiveVersion(w http.ResponseWriter, r *http.Request) {
 	prompt, ok := h.repo.prompts[promptID]
 	if !ok || prompt.TenantID != tenantID {
 		h.repo.mu.Unlock()
-		writeError(w, http.StatusNotFound, "NOT_FOUND", "Prompt not found")
+		httputil.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Prompt not found")
 		return
 	}
 	prompt.ActiveVersion = body.Version
 	prompt.UpdatedAt = time.Now()
 	h.repo.mu.Unlock()
 
-	writeJSON(w, http.StatusOK, prompt)
+	httputil.WriteJSON(w, http.StatusOK, prompt, "")
 }
 
 func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
 		return
 	}
 	promptID := r.PathValue("id")
@@ -237,7 +237,7 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	prompt, ok := h.repo.prompts[promptID]
 	if !ok || prompt.TenantID != tenantID {
 		h.repo.mu.RUnlock()
-		writeError(w, http.StatusNotFound, "NOT_FOUND", "Prompt not found")
+		httputil.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Prompt not found")
 		return
 	}
 	versions := h.repo.versions[promptID]
@@ -254,28 +254,5 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = prompt // used for tenant check above
-	writeJSON(w, http.StatusOK, versions)
-}
-
-func writeJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{"data": ensureNotNil(data), "meta": map[string]any{}})
-}
-
-func ensureNotNil(v interface{}) interface{} {
-	if v == nil {
-		return []interface{}{}
-	}
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Slice && rv.IsNil() {
-		return []interface{}{}
-	}
-	return v
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"code": code, "message": message}})
+	httputil.WriteJSON(w, http.StatusOK, versions, "")
 }

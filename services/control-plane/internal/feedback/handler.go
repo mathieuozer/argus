@@ -3,10 +3,10 @@ package feedback
 import (
 	"encoding/json"
 	"net/http"
-	"reflect"
 	"sync"
 	"time"
 
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -56,13 +56,13 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 func (h *Handler) SubmitFeedback(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
 		return
 	}
 
 	var fb Feedback
 	if err := json.NewDecoder(r.Body).Decode(&fb); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		httputil.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
 		return
 	}
 
@@ -74,13 +74,13 @@ func (h *Handler) SubmitFeedback(w http.ResponseWriter, r *http.Request) {
 	h.repo.feedback = append(h.repo.feedback, &fb)
 	h.repo.mu.Unlock()
 
-	writeJSON(w, http.StatusCreated, fb)
+	httputil.WriteJSON(w, http.StatusCreated, fb, "")
 }
 
 func (h *Handler) ListFeedback(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
 		return
 	}
 	agentID := r.URL.Query().Get("agent_id")
@@ -99,13 +99,13 @@ func (h *Handler) ListFeedback(w http.ResponseWriter, r *http.Request) {
 	if feedbacks == nil {
 		feedbacks = []*Feedback{}
 	}
-	writeJSON(w, http.StatusOK, feedbacks)
+	httputil.WriteJSON(w, http.StatusOK, feedbacks, "")
 }
 
 func (h *Handler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
 		return
 	}
 
@@ -137,28 +137,5 @@ func (h *Handler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	if result == nil {
 		result = []*FeedbackSummary{}
 	}
-	writeJSON(w, http.StatusOK, result)
-}
-
-func writeJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{"data": ensureNotNil(data), "meta": map[string]any{}})
-}
-
-func ensureNotNil(v interface{}) interface{} {
-	if v == nil {
-		return []interface{}{}
-	}
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Slice && rv.IsNil() {
-		return []interface{}{}
-	}
-	return v
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"code": code, "message": message}})
+	httputil.WriteJSON(w, http.StatusOK, result, "")
 }

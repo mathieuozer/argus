@@ -3,9 +3,9 @@ package catalog
 import (
 	"encoding/json"
 	"net/http"
-	"reflect"
 	"strings"
 
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -31,7 +31,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 func (h *Handler) handleSources(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
 		return
 	}
 
@@ -40,7 +40,7 @@ func (h *Handler) handleSources(w http.ResponseWriter, r *http.Request) {
 		srcType := SourceType(r.URL.Query().Get("type"))
 		tag := r.URL.Query().Get("tag")
 		sources := h.repo.ListSources(tenantID, srcType, tag)
-		writeJSON(w, http.StatusOK, sources, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, sources, tenantID)
 
 	case http.MethodPost:
 		var req struct {
@@ -53,32 +53,32 @@ func (h *Handler) handleSources(w http.ResponseWriter, r *http.Request) {
 			Schema      map[string]string `json:"schema"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 		if req.Name == "" || req.Type == "" {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "name and type are required")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "name and type are required")
 			return
 		}
 		src := h.repo.CreateSource(tenantID, req.Name, req.Description, req.Type, req.Owner, req.AgentID, req.Tags, req.Schema)
-		writeJSON(w, http.StatusCreated, src, tenantID)
+		httputil.WriteJSON(w, http.StatusCreated, src, tenantID)
 
 	default:
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 	}
 }
 
 func (h *Handler) handleSourceByID(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
 		return
 	}
 
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/catalog/sources/")
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 || parts[0] == "" {
-		writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "source ID required")
+		httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "source ID required")
 		return
 	}
 	sourceID := parts[0]
@@ -93,10 +93,10 @@ func (h *Handler) handleSourceByID(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		src := h.repo.GetSource(tenantID, sourceID)
 		if src == nil {
-			writeError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", "source not found")
+			httputil.WriteError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", "source not found")
 			return
 		}
-		writeJSON(w, http.StatusOK, src, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, src, tenantID)
 
 	case http.MethodPut:
 		var req struct {
@@ -106,53 +106,53 @@ func (h *Handler) handleSourceByID(w http.ResponseWriter, r *http.Request) {
 			Tags        []string `json:"tags"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 		updated, err := h.repo.UpdateSource(tenantID, sourceID, req.Name, req.Description, req.Owner, req.Tags)
 		if err != nil {
-			writeError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", err.Error())
+			httputil.WriteError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, updated, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, updated, tenantID)
 
 	case http.MethodDelete:
 		if err := h.repo.DeleteSource(tenantID, sourceID); err != nil {
-			writeError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", err.Error())
+			httputil.WriteError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"}, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"}, tenantID)
 
 	default:
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 	}
 }
 
 func (h *Handler) handleSourceLineage(w http.ResponseWriter, r *http.Request, tenantID, sourceID string) {
 	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
 
 	graph := h.repo.GetLineage(tenantID, sourceID)
 	if graph == nil {
-		writeError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", "source not found")
+		httputil.WriteError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", "source not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, graph, tenantID)
+	httputil.WriteJSON(w, http.StatusOK, graph, tenantID)
 }
 
 func (h *Handler) handleLineageEdges(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
 		return
 	}
 
 	switch r.Method {
 	case http.MethodGet:
 		edges := h.repo.ListEdges(tenantID)
-		writeJSON(w, http.StatusOK, edges, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, edges, tenantID)
 
 	case http.MethodPost:
 		var req struct {
@@ -163,11 +163,11 @@ func (h *Handler) handleLineageEdges(w http.ResponseWriter, r *http.Request) {
 			Description   string `json:"description"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 		if req.SourceID == "" || req.TargetID == "" {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "source_id and target_id are required")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "source_id and target_id are required")
 			return
 		}
 		if req.TransformType == "" {
@@ -175,58 +175,27 @@ func (h *Handler) handleLineageEdges(w http.ResponseWriter, r *http.Request) {
 		}
 		edge, err := h.repo.AddLineageEdge(tenantID, req.SourceID, req.TargetID, req.TransformType, req.AgentID, req.Description)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
 		}
-		writeJSON(w, http.StatusCreated, edge, tenantID)
+		httputil.WriteJSON(w, http.StatusCreated, edge, tenantID)
 
 	default:
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 	}
 }
 
 func (h *Handler) handleTools(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
 		return
 	}
 
 	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
 
-	writeJSON(w, http.StatusOK, []interface{}{}, tenantID)
-}
-
-func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"data": ensureNotNil(data),
-		"meta": map[string]string{"tenant_id": tenantID},
-	})
-}
-
-func ensureNotNil(v interface{}) interface{} {
-	if v == nil {
-		return []interface{}{}
-	}
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Slice && rv.IsNil() {
-		return []interface{}{}
-	}
-	return v
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": map[string]string{
-			"code":    code,
-			"message": message,
-		},
-	})
+	httputil.WriteJSON(w, http.StatusOK, []interface{}{}, tenantID)
 }

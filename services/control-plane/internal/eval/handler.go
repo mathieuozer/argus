@@ -3,10 +3,10 @@ package eval
 import (
 	"encoding/json"
 	"net/http"
-	"reflect"
 	"sync"
 	"time"
 
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -98,13 +98,13 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 func (h *Handler) CreateSuite(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
+		httputil.WriteError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
 		return
 	}
 
 	var suite TestSuite
 	if err := json.NewDecoder(r.Body).Decode(&suite); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		httputil.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
 		return
 	}
 
@@ -117,13 +117,13 @@ func (h *Handler) CreateSuite(w http.ResponseWriter, r *http.Request) {
 	h.repo.suites[suite.ID] = &suite
 	h.repo.mu.Unlock()
 
-	writeJSON(w, http.StatusCreated, suite)
+	httputil.WriteJSON(w, http.StatusCreated, suite, "")
 }
 
 func (h *Handler) ListSuites(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
+		httputil.WriteError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
 		return
 	}
 
@@ -140,13 +140,13 @@ func (h *Handler) ListSuites(w http.ResponseWriter, r *http.Request) {
 		suites = []*TestSuite{}
 	}
 
-	writeJSON(w, http.StatusOK, suites)
+	httputil.WriteJSON(w, http.StatusOK, suites, "")
 }
 
 func (h *Handler) GetSuite(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
+		httputil.WriteError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
 		return
 	}
 	id := r.PathValue("id")
@@ -156,17 +156,17 @@ func (h *Handler) GetSuite(w http.ResponseWriter, r *http.Request) {
 	h.repo.mu.RUnlock()
 
 	if !ok || suite.TenantID != tenantID {
-		writeError(w, http.StatusNotFound, "NOT_FOUND", "Test suite not found")
+		httputil.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Test suite not found")
 		return
 	}
 
-	writeJSON(w, http.StatusOK, suite)
+	httputil.WriteJSON(w, http.StatusOK, suite, "")
 }
 
 func (h *Handler) RunEval(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
+		httputil.WriteError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
 		return
 	}
 	suiteID := r.PathValue("id")
@@ -176,7 +176,7 @@ func (h *Handler) RunEval(w http.ResponseWriter, r *http.Request) {
 	h.repo.mu.RUnlock()
 
 	if !ok || suite.TenantID != tenantID {
-		writeError(w, http.StatusNotFound, "NOT_FOUND", "Test suite not found")
+		httputil.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Test suite not found")
 		return
 	}
 
@@ -226,13 +226,13 @@ func (h *Handler) RunEval(w http.ResponseWriter, r *http.Request) {
 	h.repo.runs[run.ID] = run
 	h.repo.mu.Unlock()
 
-	writeJSON(w, http.StatusOK, run)
+	httputil.WriteJSON(w, http.StatusOK, run, "")
 }
 
 func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
+		httputil.WriteError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
 		return
 	}
 
@@ -249,13 +249,13 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 		runs = []*EvalRun{}
 	}
 
-	writeJSON(w, http.StatusOK, runs)
+	httputil.WriteJSON(w, http.StatusOK, runs, "")
 }
 
 func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
+		httputil.WriteError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
 		return
 	}
 	id := r.PathValue("id")
@@ -265,11 +265,11 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 	h.repo.mu.RUnlock()
 
 	if !ok || run.TenantID != tenantID {
-		writeError(w, http.StatusNotFound, "NOT_FOUND", "Eval run not found")
+		httputil.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Eval run not found")
 		return
 	}
 
-	writeJSON(w, http.StatusOK, run)
+	httputil.WriteJSON(w, http.StatusOK, run, "")
 }
 
 func generateID(prefix string) string {
@@ -284,35 +284,4 @@ func randomSuffix() string {
 		time.Sleep(1 * time.Nanosecond) // vary the nanosecond
 	}
 	return string(b)
-}
-
-func writeJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"data": ensureNotNil(data),
-		"meta": map[string]any{},
-	})
-}
-
-func ensureNotNil(v interface{}) interface{} {
-	if v == nil {
-		return []interface{}{}
-	}
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Slice && rv.IsNil() {
-		return []interface{}{}
-	}
-	return v
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"error": map[string]any{
-			"code":    code,
-			"message": message,
-		},
-	})
 }

@@ -1,12 +1,11 @@
 package trace
 
 import (
-	"encoding/json"
 	"net/http"
-	"reflect"
 	"strconv"
 	"strings"
 
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -29,12 +28,12 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 func (h *Handler) handleTraces(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
 		return
 	}
 
 	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
 
@@ -47,25 +46,25 @@ func (h *Handler) handleTraces(w http.ResponseWriter, r *http.Request) {
 	}
 
 	traces := h.service.ListTraces(tenantID, agentID, limit)
-	writeJSON(w, http.StatusOK, traces, tenantID)
+	httputil.WriteJSON(w, http.StatusOK, traces, tenantID)
 }
 
 func (h *Handler) handleTraceByID(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := tenancy.FromContext(r.Context())
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
 		return
 	}
 
 	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
 
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/traces/")
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 || parts[0] == "" {
-		writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "trace ID required")
+		httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "trace ID required")
 		return
 	}
 	traceID := parts[0]
@@ -74,48 +73,17 @@ func (h *Handler) handleTraceByID(w http.ResponseWriter, r *http.Request) {
 	if len(parts) > 1 && parts[1] == "flamegraph" {
 		fg := h.service.GetFlameGraph(tenantID, traceID)
 		if fg == nil {
-			writeError(w, http.StatusNotFound, "TRACE_NOT_FOUND", "trace not found")
+			httputil.WriteError(w, http.StatusNotFound, "TRACE_NOT_FOUND", "trace not found")
 			return
 		}
-		writeJSON(w, http.StatusOK, fg, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, fg, tenantID)
 		return
 	}
 
 	detail := h.service.GetTrace(tenantID, traceID)
 	if detail == nil {
-		writeError(w, http.StatusNotFound, "TRACE_NOT_FOUND", "trace not found")
+		httputil.WriteError(w, http.StatusNotFound, "TRACE_NOT_FOUND", "trace not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, detail, tenantID)
-}
-
-func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"data": ensureNotNil(data),
-		"meta": map[string]string{"tenant_id": tenantID},
-	})
-}
-
-func ensureNotNil(v interface{}) interface{} {
-	if v == nil {
-		return []interface{}{}
-	}
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Slice && rv.IsNil() {
-		return []interface{}{}
-	}
-	return v
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": map[string]string{
-			"code":    code,
-			"message": message,
-		},
-	})
+	httputil.WriteJSON(w, http.StatusOK, detail, tenantID)
 }
