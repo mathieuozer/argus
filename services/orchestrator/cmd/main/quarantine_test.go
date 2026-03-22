@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/pkg/tenancy"
 	"github.com/argus-platform/argus/services/orchestrator/internal/registry"
@@ -22,7 +23,7 @@ func buildAgentMux(agentRegistry *registry.Registry) http.Handler {
 		tenantID, _ := tenancy.FromContext(r.Context())
 		agentID := strings.TrimPrefix(r.URL.Path, "/api/v1/agents/")
 		if agentID == "" {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "agent ID required")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "agent ID required")
 			return
 		}
 
@@ -31,18 +32,18 @@ func buildAgentMux(agentRegistry *registry.Registry) http.Handler {
 			agentID = strings.TrimSuffix(agentID, "/quarantine")
 			if r.Method == http.MethodPost {
 				if err := agentRegistry.QuarantineAgent(tenantID, agentID); err != nil {
-					writeError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
+					httputil.WriteError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
 					return
 				}
 				agent, err := agentRegistry.Get(tenantID, agentID)
 				if err != nil {
-					writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "agent quarantined but failed to retrieve updated state")
+					httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "agent quarantined but failed to retrieve updated state")
 					return
 				}
-				writeJSON(w, http.StatusOK, agent, tenantID)
+				httputil.WriteJSON(w, http.StatusOK, agent, tenantID)
 				return
 			}
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -51,12 +52,12 @@ func buildAgentMux(agentRegistry *registry.Registry) http.Handler {
 		case http.MethodGet:
 			agent, err := agentRegistry.Get(tenantID, agentID)
 			if err != nil {
-				writeError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
+				httputil.WriteError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
 				return
 			}
-			writeJSON(w, http.StatusOK, agent, tenantID)
+			httputil.WriteJSON(w, http.StatusOK, agent, tenantID)
 		default:
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		}
 	})))
 

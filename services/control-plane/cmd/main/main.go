@@ -440,58 +440,6 @@ func main() {
 		}, tenantID)
 	})))
 
-	// Agents endpoint (list agents for dashboard)
-	mux.HandleFunc("/api/v1/agents", func(w http.ResponseWriter, r *http.Request) {
-		tenantID, err := tenancy.FromContext(r.Context())
-		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
-			return
-		}
-
-		switch r.Method {
-		case http.MethodGet:
-			httputil.WriteJSON(w, http.StatusOK, []interface{}{}, tenantID)
-		default:
-			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
-		}
-	})
-
-	// Tasks endpoint (list/create tasks for dashboard)
-	mux.HandleFunc("/api/v1/tasks", func(w http.ResponseWriter, r *http.Request) {
-		tenantID, err := tenancy.FromContext(r.Context())
-		if err != nil {
-			httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
-			return
-		}
-
-		switch r.Method {
-		case http.MethodGet:
-			httputil.WriteJSON(w, http.StatusOK, []interface{}{}, tenantID)
-		case http.MethodPost:
-			var req struct {
-				AgentID   string `json:"agent_id"`
-				InputHash string `json:"input_hash"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
-				return
-			}
-			task := map[string]interface{}{
-				"id":           "task-" + time.Now().Format("20060102150405"),
-				"tenant_id":    tenantID,
-				"agent_id":     req.AgentID,
-				"status":       "pending",
-				"input_hash":   req.InputHash,
-				"started_at":   time.Now().Format(time.RFC3339),
-				"completed_at": nil,
-				"cost_usd":     0.0,
-				"tokens_used":  0,
-			}
-			httputil.WriteJSON(w, http.StatusCreated, task, tenantID)
-		default:
-			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
-		}
-	})
 
 	// Wrap with auth + tenant + logging middleware.
 	// TenantHTTP extracts X-Tenant-ID header into tenancy context.

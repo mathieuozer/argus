@@ -14,6 +14,7 @@ import (
 
 	identityv1 "github.com/argus-platform/argus/gen/go/identity"
 	"github.com/argus-platform/argus/pkg/config"
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/pkg/tenancy"
@@ -78,7 +79,7 @@ func main() {
 		tenantID, _ := tenancy.FromContext(r.Context())
 
 		if r.Method != http.MethodPost {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -87,7 +88,7 @@ func main() {
 			Version string `json:"version"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 
@@ -95,7 +96,7 @@ func main() {
 		certPEM, keyPEM, err := authority.IssueCert(spiffeID, time.Hour)
 		if err != nil {
 			log.Error("failed to issue cert", zap.Error(err))
-			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to issue certificate")
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to issue certificate")
 			return
 		}
 
@@ -108,7 +109,7 @@ func main() {
 			log.Error("failed to store key material in vault", zap.String("path", vaultPath), zap.Error(err))
 		}
 
-		writeJSON(w, http.StatusCreated, map[string]interface{}{
+		httputil.WriteJSON(w, http.StatusCreated, map[string]interface{}{
 			"spiffe_id":  spiffeID,
 			"cert_pem":   string(certPEM),
 			"expires_at": time.Now().Add(time.Hour).Format(time.RFC3339),
@@ -126,7 +127,7 @@ func main() {
 		tenantID, _ := tenancy.FromContext(r.Context())
 
 		if r.Method != http.MethodPost {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -134,12 +135,12 @@ func main() {
 			SpiffeID string `json:"spiffe_id"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 
 		if revocationStore.IsRevoked(req.SpiffeID) {
-			writeJSON(w, http.StatusOK, map[string]interface{}{
+			httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 				"valid":   false,
 				"reason":  "revoked",
 			}, tenantID)
@@ -149,14 +150,14 @@ func main() {
 		// Parse the SPIFFE ID to validate tenant ownership
 		parsedTenant, parsedAgent, parsedVersion, err := spiffeGen.Parse(req.SpiffeID)
 		if err != nil {
-			writeJSON(w, http.StatusOK, map[string]interface{}{
+			httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 				"valid":  false,
 				"reason": "invalid SPIFFE ID format",
 			}, tenantID)
 			return
 		}
 
-		writeJSON(w, http.StatusOK, map[string]interface{}{
+		httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 			"valid":     true,
 			"tenant_id": parsedTenant,
 			"agent_id":  parsedAgent,
@@ -169,7 +170,7 @@ func main() {
 		tenantID, _ := tenancy.FromContext(r.Context())
 
 		if r.Method != http.MethodPost {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -178,19 +179,19 @@ func main() {
 			Reason   string `json:"reason"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 
 		// Verify tenant ownership of the SPIFFE ID
 		if !strings.Contains(req.SpiffeID, "/tenant/"+tenantID+"/") {
-			writeError(w, http.StatusForbidden, "FORBIDDEN", "cannot revoke SVID from another tenant")
+			httputil.WriteError(w, http.StatusForbidden, "FORBIDDEN", "cannot revoke SVID from another tenant")
 			return
 		}
 
 		revocationStore.Revoke(req.SpiffeID, req.Reason)
 
-		writeJSON(w, http.StatusOK, map[string]bool{"revoked": true}, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, map[string]bool{"revoked": true}, tenantID)
 
 		log.Info("revoked SVID",
 			zap.String("tenant_id", tenantID),
@@ -202,7 +203,7 @@ func main() {
 	// CRL endpoint
 	mux.Handle("/api/v1/identity/crl", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -249,22 +250,3 @@ func main() {
 	_ = cfg
 }
 
-func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"data": data,
-		"meta": map[string]string{"tenant_id": tenantID},
-	})
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": map[string]string{
-			"code":    code,
-			"message": message,
-		},
-	})
-}

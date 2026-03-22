@@ -14,10 +14,11 @@ import (
 
 	telemetryv1 "github.com/argus-platform/argus/gen/go/telemetry"
 	"github.com/argus-platform/argus/pkg/config"
+	"github.com/argus-platform/argus/pkg/database"
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/pkg/tenancy"
-	"github.com/argus-platform/argus/pkg/database"
 	"github.com/argus-platform/argus/services/telemetry/internal/catalog"
 	"github.com/argus-platform/argus/services/telemetry/internal/classifier"
 	"github.com/argus-platform/argus/services/telemetry/internal/collector"
@@ -138,7 +139,7 @@ func main() {
 				Spans []*collector.Span `json:"spans"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+				httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 				return
 			}
 
@@ -211,16 +212,16 @@ func main() {
 				}
 			}
 
-			writeJSON(w, http.StatusOK, map[string]int{"accepted": accepted}, tenantID)
+			httputil.WriteJSON(w, http.StatusOK, map[string]int{"accepted": accepted}, tenantID)
 
 		case http.MethodGet:
 			agentID := r.URL.Query().Get("agent_id")
 			traceID := r.URL.Query().Get("trace_id")
 			spans := spanCollector.Query(tenantID, agentID, traceID, 100)
-			writeJSON(w, http.StatusOK, spans, tenantID)
+			httputil.WriteJSON(w, http.StatusOK, spans, tenantID)
 
 		default:
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		}
 	})))
 
@@ -229,7 +230,7 @@ func main() {
 		tenantID, _ := tenancy.FromContext(r.Context())
 
 		if r.Method != http.MethodPost {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -241,11 +242,11 @@ func main() {
 			} `json:"metrics"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 
-		writeJSON(w, http.StatusOK, map[string]int{"accepted": len(req.Metrics)}, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, map[string]int{"accepted": len(req.Metrics)}, tenantID)
 	})))
 
 	// Prediction endpoint
@@ -253,41 +254,41 @@ func main() {
 		tenantID, _ := tenancy.FromContext(r.Context())
 
 		if r.Method != http.MethodPost {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
 		var features predictor.Features
 		if err := json.NewDecoder(r.Body).Decode(&features); err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 
 		prediction, err := predictorClient.Predict(&features)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "PREDICTION_ERROR", err.Error())
+			httputil.WriteError(w, http.StatusInternalServerError, "PREDICTION_ERROR", err.Error())
 			return
 		}
 
-		writeJSON(w, http.StatusOK, prediction, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, prediction, tenantID)
 	})))
 
 	// Data catalog endpoint
 	mux.Handle("/api/v1/telemetry/catalog", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID, _ := tenancy.FromContext(r.Context())
 		if r.Method != http.MethodGet {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 		entries := catalogDiscoverer.ListSources(tenantID)
-		writeJSON(w, http.StatusOK, entries, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, entries, tenantID)
 	})))
 
 	// Data residency proof endpoint
 	mux.Handle("/api/v1/telemetry/residency/proof", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID, _ := tenancy.FromContext(r.Context())
 		if r.Method != http.MethodGet {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 		allowedRegions := r.URL.Query()["region"]
@@ -295,24 +296,24 @@ func main() {
 			allowedRegions = []string{os.Getenv("ARGUS_REGION")}
 		}
 		proof := residencyProver.GenerateProof(tenantID, allowedRegions)
-		writeJSON(w, http.StatusOK, proof, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, proof, tenantID)
 	})))
 
 	// Data quality score endpoint
 	mux.Handle("/api/v1/telemetry/quality", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID, _ := tenancy.FromContext(r.Context())
 		if r.Method != http.MethodGet {
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 		agentID := r.URL.Query().Get("agent_id")
 		if agentID == "" {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "agent_id is required")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "agent_id is required")
 			return
 		}
 		records, timestamps := spanDataTracker.Get(agentID)
 		score := dqScorer.Score(agentID, records, nil, timestamps)
-		writeJSON(w, http.StatusOK, score, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, score, tenantID)
 	})))
 
 	handler := middleware.CORS(middleware.RequestLogger(log)(mux))
@@ -343,26 +344,6 @@ func main() {
 		log.Error("HTTP server shutdown error", zap.Error(err))
 	}
 	_ = cfg
-}
-
-func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"data": data,
-		"meta": map[string]string{"tenant_id": tenantID},
-	})
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": map[string]string{
-			"code":    code,
-			"message": message,
-		},
-	})
 }
 
 // toInterfaceMap converts map[string]string to map[string]interface{} for the

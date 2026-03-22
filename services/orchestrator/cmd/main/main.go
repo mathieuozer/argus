@@ -18,6 +18,7 @@ import (
 	orchestrationv1 "github.com/argus-platform/argus/gen/go/orchestration"
 	"github.com/argus-platform/argus/pkg/config"
 	"github.com/argus-platform/argus/pkg/database"
+	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/pkg/tenancy"
@@ -103,11 +104,11 @@ func main() {
 		switch r.Method {
 		case http.MethodGet:
 			agents := agentRegistry.List(tenantID)
-			writeJSON(w, http.StatusOK, agents, tenantID)
+			httputil.WriteJSON(w, http.StatusOK, agents, tenantID)
 		case http.MethodPost:
 			var req registry.RegisterRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+				httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 				return
 			}
 			agent := agentRegistry.Register(tenantID, &req)
@@ -117,9 +118,9 @@ func main() {
 					log.Error("failed to persist agent to DB", zap.Error(err))
 				}
 			}
-			writeJSON(w, http.StatusCreated, agent, tenantID)
+			httputil.WriteJSON(w, http.StatusCreated, agent, tenantID)
 		default:
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		}
 	})))
 
@@ -128,7 +129,7 @@ func main() {
 		tenantID, _ := tenancy.FromContext(r.Context())
 		agentID := strings.TrimPrefix(r.URL.Path, "/api/v1/agents/")
 		if agentID == "" {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "agent ID required")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "agent ID required")
 			return
 		}
 
@@ -140,11 +141,11 @@ func main() {
 					Status string `json:"status"`
 				}
 				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-					writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+					httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 					return
 				}
 				if err := agentRegistry.Heartbeat(tenantID, agentID, registry.AgentStatus(req.Status)); err != nil {
-					writeError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
+					httputil.WriteError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
 					return
 				}
 				if agentRepo != nil {
@@ -152,10 +153,10 @@ func main() {
 						log.Error("failed to persist heartbeat to DB", zap.Error(err))
 					}
 				}
-				writeJSON(w, http.StatusOK, map[string]bool{"acknowledged": true}, tenantID)
+				httputil.WriteJSON(w, http.StatusOK, map[string]bool{"acknowledged": true}, tenantID)
 				return
 			}
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -165,7 +166,7 @@ func main() {
 			agentID = strings.TrimSuffix(agentID, "/quarantine")
 			if r.Method == http.MethodPost {
 				if err := agentRegistry.QuarantineAgent(tenantID, agentID); err != nil {
-					writeError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
+					httputil.WriteError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
 					return
 				}
 				if agentRepo != nil {
@@ -179,13 +180,13 @@ func main() {
 				)
 				agent, err := agentRegistry.Get(tenantID, agentID)
 				if err != nil {
-					writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "agent quarantined but failed to retrieve updated state")
+					httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "agent quarantined but failed to retrieve updated state")
 					return
 				}
-				writeJSON(w, http.StatusOK, agent, tenantID)
+				httputil.WriteJSON(w, http.StatusOK, agent, tenantID)
 				return
 			}
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -193,12 +194,12 @@ func main() {
 		case http.MethodGet:
 			agent, err := agentRegistry.Get(tenantID, agentID)
 			if err != nil {
-				writeError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
+				httputil.WriteError(w, http.StatusNotFound, "AGENT_NOT_FOUND", err.Error())
 				return
 			}
-			writeJSON(w, http.StatusOK, agent, tenantID)
+			httputil.WriteJSON(w, http.StatusOK, agent, tenantID)
 		default:
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		}
 	})))
 
@@ -208,7 +209,7 @@ func main() {
 		switch r.Method {
 		case http.MethodGet:
 			tasks := sm.ListByTenant(tenantID)
-			writeJSON(w, http.StatusOK, tasks, tenantID)
+			httputil.WriteJSON(w, http.StatusOK, tasks, tenantID)
 		case http.MethodPost:
 			var req struct {
 				InputHash            string   `json:"input_hash"`
@@ -216,7 +217,7 @@ func main() {
 				PreferredAgentID     string   `json:"preferred_agent_id"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+				httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 				return
 			}
 
@@ -230,7 +231,7 @@ func main() {
 			// Route to an agent
 			agent, err := taskRouter.Route(tenantID, req.RequiredCapabilities, req.PreferredAgentID)
 			if err != nil {
-				writeError(w, http.StatusUnprocessableEntity, "NO_AGENT_AVAILABLE", err.Error())
+				httputil.WriteError(w, http.StatusUnprocessableEntity, "NO_AGENT_AVAILABLE", err.Error())
 				return
 			}
 
@@ -241,9 +242,9 @@ func main() {
 					log.Error("failed to persist task to DB", zap.Error(err))
 				}
 			}
-			writeJSON(w, http.StatusCreated, task, tenantID)
+			httputil.WriteJSON(w, http.StatusCreated, task, tenantID)
 		default:
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		}
 	})))
 
@@ -252,7 +253,7 @@ func main() {
 		tenantID, _ := tenancy.FromContext(r.Context())
 		taskID := strings.TrimPrefix(r.URL.Path, "/api/v1/tasks/")
 		if taskID == "" {
-			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "task ID required")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "task ID required")
 			return
 		}
 
@@ -260,14 +261,14 @@ func main() {
 		case http.MethodGet:
 			task, err := sm.Get(taskID)
 			if err != nil {
-				writeError(w, http.StatusNotFound, "TASK_NOT_FOUND", err.Error())
+				httputil.WriteError(w, http.StatusNotFound, "TASK_NOT_FOUND", err.Error())
 				return
 			}
 			if task.TenantID != tenantID {
-				writeError(w, http.StatusForbidden, "FORBIDDEN", "cross-tenant access denied")
+				httputil.WriteError(w, http.StatusForbidden, "FORBIDDEN", "cross-tenant access denied")
 				return
 			}
-			writeJSON(w, http.StatusOK, task, tenantID)
+			httputil.WriteJSON(w, http.StatusOK, task, tenantID)
 		case http.MethodPut:
 			var req struct {
 				Status     string  `json:"status"`
@@ -275,22 +276,22 @@ func main() {
 				TokensUsed int64   `json:"tokens_used"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+				httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 				return
 			}
 
 			task, err := sm.Get(taskID)
 			if err != nil {
-				writeError(w, http.StatusNotFound, "TASK_NOT_FOUND", err.Error())
+				httputil.WriteError(w, http.StatusNotFound, "TASK_NOT_FOUND", err.Error())
 				return
 			}
 			if task.TenantID != tenantID {
-				writeError(w, http.StatusForbidden, "FORBIDDEN", "cross-tenant access denied")
+				httputil.WriteError(w, http.StatusForbidden, "FORBIDDEN", "cross-tenant access denied")
 				return
 			}
 
 			if err := sm.Transition(taskID, statemachine.TaskStatus(req.Status)); err != nil {
-				writeError(w, http.StatusBadRequest, "INVALID_TRANSITION", err.Error())
+				httputil.WriteError(w, http.StatusBadRequest, "INVALID_TRANSITION", err.Error())
 				return
 			}
 			if taskRepo != nil {
@@ -309,9 +310,9 @@ func main() {
 			}
 
 			updated, _ := sm.Get(taskID)
-			writeJSON(w, http.StatusOK, updated, tenantID)
+			httputil.WriteJSON(w, http.StatusOK, updated, tenantID)
 		default:
-			writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		}
 	})))
 
@@ -328,7 +329,7 @@ func main() {
 			}
 		}
 
-		writeJSON(w, http.StatusOK, map[string]interface{}{
+		httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 			"total_agents": len(agents),
 			"active_tasks": activeTasks,
 			"total_tasks":  len(tasks),
@@ -366,22 +367,3 @@ func main() {
 	_ = cfg
 }
 
-func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"data": data,
-		"meta": map[string]string{"tenant_id": tenantID},
-	})
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": map[string]string{
-			"code":    code,
-			"message": message,
-		},
-	})
-}
