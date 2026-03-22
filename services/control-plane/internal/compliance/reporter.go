@@ -46,6 +46,13 @@ func NewReportRepository() *ReportRepository {
 	return &ReportRepository{reports: make(map[string]*Report)}
 }
 
+// AddReport adds a report directly (used for seeding).
+func (r *ReportRepository) AddReport(report *Report) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.reports[report.ID] = report
+}
+
 // ReportHandler handles compliance report requests.
 type ReportHandler struct {
 	repo *ReportRepository

@@ -11,4 +11,6 @@ export interface PredictiveAlert {
   evidence: string[];
   status: AlertStatus;
   created_at: string;
+  severity?: AlertSeverity;
+  title?: string;
 }

@@ -62,6 +62,20 @@ func NewRepository() *Repository {
 	}
 }
 
+// AddRule adds a rule directly (used for seeding).
+func (r *Repository) AddRule(rule *Rule) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.rules[rule.ID] = rule
+}
+
+// AddViolation adds a violation directly (used for seeding).
+func (r *Repository) AddViolation(v *Violation) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.violations = append(r.violations, v)
+}
+
 // Handler handles guardrail HTTP requests.
 type Handler struct {
 	repo *Repository

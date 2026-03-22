@@ -2,44 +2,44 @@ export interface TestCase {
   id: string;
   name: string;
   input: string;
-  expectedOutput: string;
+  expected_output: string;
   criteria: Record<string, string>;
-  maxLatencyMs: number;
+  max_latency_ms: number;
 }
 
 export interface TestSuite {
   id: string;
-  tenantId: string;
+  tenant_id: string;
   name: string;
   description: string;
-  agentId: string;
-  testCases: TestCase[];
-  createdAt: string;
-  updatedAt: string;
+  agent_id: string;
+  test_cases: TestCase[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CaseResult {
-  testCaseId: string;
-  testCaseName: string;
+  test_case_id: string;
+  test_case_name: string;
   status: 'passed' | 'failed' | 'error';
-  actualOutput: string;
-  latencyMs: number;
+  actual_output: string;
+  latency_ms: number;
   score: number;
   reason: string;
 }
 
 export interface EvalRun {
   id: string;
-  tenantId: string;
-  suiteId: string;
-  suiteName: string;
-  agentId: string;
+  tenant_id: string;
+  suite_id: string;
+  suite_name: string;
+  agent_id: string;
   status: 'running' | 'completed' | 'failed';
   score: number;
-  totalCases: number;
-  passedCases: number;
-  failedCases: number;
+  total_cases: number;
+  passed_cases: number;
+  failed_cases: number;
   results: CaseResult[];
-  startedAt: string;
-  completedAt: string | null;
+  started_at: string;
+  completed_at: string | null;
 }

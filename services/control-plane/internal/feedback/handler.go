@@ -39,6 +39,13 @@ func NewRepository() *Repository {
 	return &Repository{feedback: make([]*Feedback, 0)}
 }
 
+// AddFeedback adds feedback directly (used for seeding).
+func (r *Repository) AddFeedback(fb *Feedback) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.feedback = append(r.feedback, fb)
+}
+
 type Handler struct {
 	repo *Repository
 }

@@ -52,6 +52,20 @@ func NewRepository() *Repository {
 	}
 }
 
+// AddPrompt adds a prompt directly (used for seeding).
+func (r *Repository) AddPrompt(p *Prompt) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.prompts[p.ID] = p
+}
+
+// AddVersion adds a prompt version directly (used for seeding).
+func (r *Repository) AddVersion(v *PromptVersion) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.versions[v.PromptID] = append(r.versions[v.PromptID], v)
+}
+
 type Handler struct {
 	repo *Repository
 }

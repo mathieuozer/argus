@@ -7,7 +7,7 @@ function EvalsPage() {
   const { t } = useTranslation();
   const { suites, runs, isLoading, error, fetchSuites, fetchRuns, runEval, createSuite } = useEvalStore();
   const [showCreate, setShowCreate] = useState(false);
-  const [newSuite, setNewSuite] = useState({ name: '', description: '', agentId: '' });
+  const [newSuite, setNewSuite] = useState({ name: '', description: '', agent_id: '' });
 
   useEffect(() => {
     fetchSuites();
@@ -17,12 +17,12 @@ function EvalsPage() {
   const handleCreate = async () => {
     await createSuite({
       ...newSuite,
-      testCases: [
-        { id: 'tc-1', name: 'Default Test', input: 'Hello', expectedOutput: 'Hi', criteria: {}, maxLatencyMs: 5000 },
+      test_cases: [
+        { id: 'tc-1', name: 'Default Test', input: 'Hello', expected_output: 'Hi', criteria: {}, max_latency_ms: 5000 },
       ],
     });
     setShowCreate(false);
-    setNewSuite({ name: '', description: '', agentId: '' });
+    setNewSuite({ name: '', description: '', agent_id: '' });
   };
 
   return (
@@ -71,8 +71,8 @@ function EvalsPage() {
             <input
               className="input"
               placeholder={t('evals.agentId')}
-              value={newSuite.agentId}
-              onChange={(e) => setNewSuite({ ...newSuite, agentId: e.target.value })}
+              value={newSuite.agent_id}
+              onChange={(e) => setNewSuite({ ...newSuite, agent_id: e.target.value })}
             />
             <button className="btn btn-primary" onClick={handleCreate}>
               {t('evals.create')}
@@ -112,9 +112,9 @@ function EvalsPage() {
                       <tr key={suite.id}>
                         <td>{suite.name}</td>
                         <td>
-                          <code>{suite.agentId}</code>
+                          <code>{suite.agent_id}</code>
                         </td>
-                        <td>{suite.testCases?.length || 0}</td>
+                        <td>{suite.test_cases?.length || 0}</td>
                         <td>
                           <button className="btn btn-sm" onClick={() => runEval(suite.id)}>
                             {t('evals.run')}
@@ -150,12 +150,12 @@ function EvalsPage() {
                   <tbody>
                     {runs.map((run) => (
                       <tr key={run.id}>
-                        <td>{run.suiteName}</td>
+                        <td>{run.suite_name}</td>
                         <td>{(run.score * 100).toFixed(0)}%</td>
                         <td>
-                          <span className="text-success">{run.passedCases}</span>
+                          <span className="text-success">{run.passed_cases}</span>
                           {' / '}
-                          <span className="text-danger">{run.failedCases}</span>
+                          <span className="text-danger">{run.failed_cases}</span>
                         </td>
                         <td>
                           <span

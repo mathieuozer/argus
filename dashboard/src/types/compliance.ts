@@ -1,15 +1,15 @@
 export interface ComplianceReport {
   id: string;
-  tenantId: string;
-  profileId: string;
-  profileName: string;
+  tenant_id: string;
+  profile_id: string;
+  profile_name: string;
   title: string;
   status: 'generating' | 'completed' | 'failed';
   format: string;
   sections: ComplianceSection[];
-  generatedAt: string;
-  periodStart: string;
-  periodEnd: string;
+  generated_at: string;
+  period_start: string;
+  period_end: string;
 }
 
 export interface ComplianceSection {

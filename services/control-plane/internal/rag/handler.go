@@ -52,6 +52,20 @@ func NewRepository() *Repository {
 	}
 }
 
+// AddRetrieval adds a retrieval record (used for seeding).
+func (r *Repository) AddRetrieval(ret *Retrieval) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.retrievals = append(r.retrievals, ret)
+}
+
+// AddSource adds a source record (used for seeding).
+func (r *Repository) AddSource(src *Source) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sources[src.ID] = src
+}
+
 type Handler struct {
 	repo *Repository
 }

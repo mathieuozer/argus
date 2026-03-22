@@ -75,6 +75,20 @@ func NewRepository() *Repository {
 	}
 }
 
+// AddSuite adds a test suite directly (used for seeding).
+func (r *Repository) AddSuite(suite *TestSuite) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.suites[suite.ID] = suite
+}
+
+// AddRun adds an eval run directly (used for seeding).
+func (r *Repository) AddRun(run *EvalRun) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.runs[run.ID] = run
+}
+
 // Handler handles evaluation HTTP requests.
 type Handler struct {
 	repo *Repository

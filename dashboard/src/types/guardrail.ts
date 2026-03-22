@@ -1,33 +1,33 @@
 export interface GuardrailRule {
   id: string;
-  tenantId: string;
+  tenant_id: string;
   name: string;
   description: string;
   type: 'pii_detection' | 'prompt_injection' | 'toxicity' | 'blocklist' | 'schema_enforcement' | 'custom_regex';
   pattern: string;
   action: 'block' | 'warn' | 'log';
   enabled: boolean;
-  agentIds: string[];
-  createdAt: string;
+  agent_ids: string[];
+  created_at: string;
 }
 
 export interface GuardrailViolation {
   id: string;
-  tenantId: string;
-  ruleId: string;
-  ruleName: string;
-  ruleType: string;
-  agentId: string;
-  spanId: string;
+  tenant_id: string;
+  rule_id: string;
+  rule_name: string;
+  rule_type: string;
+  agent_id: string;
+  span_id: string;
   action: string;
   content: string;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface GuardrailStats {
-  totalChecks: number;
-  totalViolations: number;
-  passRate: number;
-  byRule: Record<string, number>;
-  byAgent: Record<string, number>;
+  total_checks: number;
+  total_violations: number;
+  pass_rate: number;
+  by_rule: Record<string, number>;
+  by_agent: Record<string, number>;
 }

@@ -49,9 +49,9 @@ export default function CompliancePage() {
                     {reports.map((r) => (
                       <tr key={r.id}>
                         <td>{r.title}</td>
-                        <td><code>{r.profileId}</code></td>
+                        <td><code>{r.profile_id}</code></td>
                         <td><span className={`badge badge-${r.status === 'completed' ? 'success' : 'warning'}`}>{r.status}</span></td>
-                        <td className="text-muted">{new Date(r.generatedAt).toLocaleDateString()}</td>
+                        <td className="text-muted">{new Date(r.generated_at).toLocaleDateString()}</td>
                         <td><button className="btn btn-sm" onClick={() => fetchReport(r.id)}>{t('complianceReports.view')}</button></td>
                       </tr>
                     ))}
@@ -69,7 +69,7 @@ export default function CompliancePage() {
               <div>
                 <h4>{selectedReport.title}</h4>
                 <p className="text-muted" style={{ marginBottom: '1rem' }}>
-                  {t('complianceReports.period')} {new Date(selectedReport.periodStart).toLocaleDateString()} - {new Date(selectedReport.periodEnd).toLocaleDateString()}
+                  {t('complianceReports.period')} {new Date(selectedReport.period_start).toLocaleDateString()} - {new Date(selectedReport.period_end).toLocaleDateString()}
                 </p>
                 {selectedReport.sections.map((section, i) => (
                   <div key={i} style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--color-bg)', borderRadius: '6px' }}>

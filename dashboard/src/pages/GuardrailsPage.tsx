@@ -40,15 +40,15 @@ export default function GuardrailsPage() {
         <div className="grid grid-3" style={{ marginBottom: '1.5rem' }}>
           <div className="stat-card">
             <div className="stat-label">{t('guardrails.totalChecks')}</div>
-            <div className="stat-value">{stats.totalChecks.toLocaleString()}</div>
+            <div className="stat-value">{stats.total_checks.toLocaleString()}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">{t('guardrails.violations')}</div>
-            <div className="stat-value text-danger">{stats.totalViolations}</div>
+            <div className="stat-value text-danger">{stats.total_violations}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">{t('guardrails.passRate')}</div>
-            <div className="stat-value text-success">{(stats.passRate * 100).toFixed(1)}%</div>
+            <div className="stat-value text-success">{(stats.pass_rate * 100).toFixed(1)}%</div>
           </div>
         </div>
       )}
@@ -130,10 +130,10 @@ export default function GuardrailsPage() {
                   <tbody>
                     {violations.slice(0, 20).map((v) => (
                       <tr key={v.id}>
-                        <td>{v.ruleName}</td>
-                        <td><code>{v.agentId}</code></td>
+                        <td>{v.rule_name}</td>
+                        <td><code>{v.agent_id}</code></td>
                         <td><span className={`badge badge-${v.action === 'block' ? 'danger' : 'warning'}`}>{v.action}</span></td>
-                        <td className="text-muted">{new Date(v.createdAt).toLocaleString()}</td>
+                        <td className="text-muted">{new Date(v.created_at).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
