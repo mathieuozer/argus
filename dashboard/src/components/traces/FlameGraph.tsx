@@ -8,9 +8,9 @@ const COLORS = [
   'var(--color-primary)',
   'var(--color-success)',
   'var(--color-warning)',
-  '#8b5cf6',
-  '#ec4899',
-  '#06b6d4',
+  'var(--chart-6)',
+  'var(--oryx-accent)',
+  'var(--oryx-primary-dark)',
 ];
 
 import type { ReactNode } from 'react';
