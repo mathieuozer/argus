@@ -49,6 +49,11 @@ func main() {
 	costs := costtracker.New()
 	versions := versioning.New()
 
+	// Seed demo agents so the dashboard shows data on first launch
+	if os.Getenv("ARGUS_ENV") != "production" {
+		seedDemoData(agentRegistry, sm, costs, versions, log)
+	}
+
 	// Initialize PostgreSQL persistence if DSN is configured
 	var agentRepo *repository.AgentRepository
 	var taskRepo *repository.TaskRepository
@@ -365,5 +370,63 @@ func main() {
 		log.Error("HTTP server shutdown error", zap.Error(err))
 	}
 	_ = cfg
+}
+
+func seedDemoData(reg *registry.Registry, sm *statemachine.StateMachine, costs *costtracker.Tracker, vers *versioning.Tracker, log *zap.Logger) {
+	tenantID := "default"
+
+	demoAgents := []registry.RegisterRequest{
+		{AgentID: "budget-reconciler", Version: "1.2.0", Framework: "langchain", Capabilities: []string{"read:budget_db", "write:report_store"}, NodeID: "node-1"},
+		{AgentID: "doc-summarizer", Version: "2.0.1", Framework: "autogen", Capabilities: []string{"read:documents", "write:summaries"}, NodeID: "node-1"},
+		{AgentID: "ticket-classifier", Version: "1.0.0", Framework: "crewai", Capabilities: []string{"read:tickets", "write:classifications"}, NodeID: "node-2"},
+		{AgentID: "code-reviewer", Version: "3.1.0", Framework: "custom", Capabilities: []string{"read:repos", "write:reviews"}, NodeID: "node-2"},
+		{AgentID: "data-pipeline", Version: "1.5.2", Framework: "langchain", Capabilities: []string{"read:raw_data", "write:processed_data", "execute:transforms"}, NodeID: "node-3"},
+	}
+
+	statuses := []registry.AgentStatus{
+		registry.StatusHealthy,
+		registry.StatusHealthy,
+		registry.StatusDegraded,
+		registry.StatusHealthy,
+		registry.StatusHealthy,
+	}
+
+	for i, req := range demoAgents {
+		agent := reg.Register(tenantID, &req)
+		agent.Status = statuses[i]
+		vers.Set(tenantID, req.AgentID, req.Version, false)
+	}
+
+	// Create some demo tasks
+	taskDefs := []struct {
+		agentID string
+		status  statemachine.TaskStatus
+		cost    float64
+	}{
+		{"budget-reconciler", statemachine.StatusCompleted, 0.45},
+		{"budget-reconciler", statemachine.StatusCompleted, 0.32},
+		{"doc-summarizer", statemachine.StatusRunning, 0.0},
+		{"ticket-classifier", statemachine.StatusFailed, 0.12},
+		{"code-reviewer", statemachine.StatusCompleted, 1.20},
+		{"data-pipeline", statemachine.StatusCompleted, 0.78},
+		{"data-pipeline", statemachine.StatusRunning, 0.0},
+	}
+
+	for i, td := range taskDefs {
+		taskID := fmt.Sprintf("demo-task-%d", i+1)
+		inputHash := fmt.Sprintf("%x", sha256.Sum256([]byte(taskID)))
+		task := sm.CreateTask(taskID, tenantID, td.agentID, inputHash)
+		// Transition through states
+		_ = sm.Transition(taskID, statemachine.StatusRunning)
+		if td.status == statemachine.StatusCompleted || td.status == statemachine.StatusFailed {
+			_ = sm.Transition(taskID, td.status)
+		}
+		if td.cost > 0 {
+			costs.Record(tenantID, td.agentID, td.cost)
+		}
+		_ = task
+	}
+
+	log.Info("seeded demo data", zap.Int("agents", len(demoAgents)), zap.Int("tasks", len(taskDefs)))
 }
 

@@ -151,6 +151,11 @@ func main() {
 	complianceRepo := compliance.NewReportRepository()
 	complianceHandler := compliance.NewReportHandler(complianceRepo)
 
+	// Seed demo data for dashboard (non-production only)
+	if os.Getenv("ARGUS_ENV") != "production" {
+		seedControlPlaneDemo(alertRouter, auditLog, traceSvc, sloRepo, costRepo, log)
+	}
+
 	// WebSocket stream hub for real-time agent and telemetry events
 	wsHub := ws.NewHub(log)
 
@@ -509,4 +514,138 @@ func tenantMiddlewareWithExclusions(mw func(http.Handler) http.Handler, excluded
 			wrapped.ServeHTTP(w, r)
 		})
 	}
+}
+
+func seedControlPlaneDemo(
+	alertRouter *alerts.Router,
+	auditLog *audit.Writer,
+	traceSvc *trace.Service,
+	sloRepo *slo.Repository,
+	costRepo *costgov.Repository,
+	log *zap.Logger,
+) {
+	tid := "default"
+
+	// Seed alerts
+	alertRouter.Fire(tid, "budget-reconciler", alerts.SeverityWarning, "Latency spike detected", "p99 latency exceeded 3x p50 for 45s")
+	alertRouter.Fire(tid, "ticket-classifier", alerts.SeverityCritical, "Token escalation pattern", "Agent stuck in retry loop, context window 92% full")
+	a3 := alertRouter.Fire(tid, "doc-summarizer", alerts.SeverityInfo, "New agent version available", "v2.1.0 released with performance improvements")
+	_, _ = alertRouter.UpdateStatus(tid, a3.ID, "resolved")
+
+	// Seed audit log entries
+	auditLog.Write(tid, "admin", "login", "auth/login", "role: admin")
+	auditLog.Write(tid, "admin", "create_policy", "policy/deny-external", "block external API calls")
+	auditLog.Write(tid, "system", "quarantine_agent", "agent/ticket-classifier", "auto-quarantine: failure probability 0.94")
+	auditLog.Write(tid, "admin", "create_slo", "slo/api-availability", "99.9% availability target")
+
+	// Seed traces
+	now := time.Now()
+	traces := []struct {
+		traceID string
+		agentID string
+		spans   []struct {
+			op       string
+			dur      int64
+			parent   string
+			errCode  *string
+		}
+	}{
+		{
+			traceID: "trace-001",
+			agentID: "budget-reconciler",
+			spans: []struct {
+				op      string
+				dur     int64
+				parent  string
+				errCode *string
+			}{
+				{"reconcile_budget", 1250, "", nil},
+				{"fetch_transactions", 450, "span-001-0", nil},
+				{"compute_totals", 320, "span-001-0", nil},
+				{"write_report", 180, "span-001-0", nil},
+			},
+		},
+		{
+			traceID: "trace-002",
+			agentID: "doc-summarizer",
+			spans: []struct {
+				op      string
+				dur     int64
+				parent  string
+				errCode *string
+			}{
+				{"summarize_document", 2100, "", nil},
+				{"extract_text", 800, "span-002-0", nil},
+				{"generate_summary", 1100, "span-002-0", nil},
+			},
+		},
+		{
+			traceID: "trace-003",
+			agentID: "ticket-classifier",
+			spans: []struct {
+				op      string
+				dur     int64
+				parent  string
+				errCode *string
+			}{
+				{"classify_ticket", 3500, "", strPtr("TIMEOUT")},
+				{"fetch_ticket", 200, "span-003-0", nil},
+				{"run_classifier", 3000, "span-003-0", strPtr("CONTEXT_OVERFLOW")},
+			},
+		},
+	}
+
+	for _, t := range traces {
+		for i, sp := range t.spans {
+			spanID := fmt.Sprintf("span-%s-%d", t.traceID[len(t.traceID)-3:], i)
+			parentID := sp.parent
+			traceSvc.IngestSpan(&trace.Span{
+				SpanID:        spanID,
+				TraceID:       t.traceID,
+				ParentSpanID:  parentID,
+				TenantID:      tid,
+				AgentID:       t.agentID,
+				TaskID:        "demo-task",
+				OperationName: sp.op,
+				StartedAt:     now.Add(-time.Duration(i) * time.Minute),
+				DurationMs:    sp.dur,
+				Attributes:    map[string]string{"demo": "true"},
+				ErrorCode:     sp.errCode,
+			})
+		}
+	}
+
+	// Seed SLOs with measurements
+	slo1 := sloRepo.CreateSLO(tid, "API Availability", "Agent API uptime", "budget-reconciler", slo.SLOTypeAvailability, 99.9, "30d")
+	slo2 := sloRepo.CreateSLO(tid, "Latency P99", "Response time under 2s", "doc-summarizer", slo.SLOTypeLatency, 95.0, "7d")
+	slo3 := sloRepo.CreateSLO(tid, "Error Rate", "Error rate below 1%", "ticket-classifier", slo.SLOTypeErrorRate, 99.0, "30d")
+
+	// Add measurements over the past week
+	for i := 7; i >= 0; i-- {
+		ts := now.Add(-time.Duration(i) * 24 * time.Hour)
+		sloRepo.RecordMeasurementAt(tid, slo1.ID, "budget-reconciler", 99.95, 999, 1000, ts)
+		sloRepo.RecordMeasurementAt(tid, slo2.ID, "doc-summarizer", 96.5, 965, 1000, ts)
+		sloRepo.RecordMeasurementAt(tid, slo3.ID, "ticket-classifier", 97.0, 970, 1000, ts)
+	}
+
+	// Seed cost data
+	agents := []string{"budget-reconciler", "doc-summarizer", "ticket-classifier", "code-reviewer", "data-pipeline"}
+	models := []string{"gpt-4", "claude-3", "gpt-3.5-turbo"}
+	for i := 7; i >= 0; i-- {
+		ts := now.Add(-time.Duration(i) * 24 * time.Hour)
+		for _, agentID := range agents {
+			costRepo.RecordCostAt(tid, agentID, fmt.Sprintf("task-%s-%d", agentID, i),
+				0.10+float64(i)*0.05, int64(500+i*100), models[i%len(models)], "inference", ts)
+		}
+	}
+
+	log.Info("seeded control-plane demo data",
+		zap.Int("alerts", 3),
+		zap.Int("traces", len(traces)),
+		zap.Int("slos", 3),
+	)
+}
+
+func strPtr(s string) *string {
+	return &s
 }
