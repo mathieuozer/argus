@@ -1,0 +1,67 @@
+# Prometheus alert rules for Argus (docker-compose / standalone Prometheus)
+# These mirror the K8s PrometheusRule CRDs in deployments/k8s/base/monitoring.yaml
+
+groups:
+  - name: argus.service.health
+    interval: 30s
+    rules:
+      - alert: ArgusServiceDown
+        expr: up{job=~"argus-.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Argus service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been unreachable for 2 minutes."
+
+  - name: argus.slo.latency
+    interval: 30s
+    rules:
+      - alert: ArgusHighP99Latency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p99 latency for {{ $labels.service }}: {{ $value }}s"
+
+      - alert: ArgusCriticalP99Latency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)
+          ) > 5.0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical p99 latency for {{ $labels.service }}: {{ $value }}s"
+
+  - name: argus.slo.errors
+    interval: 30s
+    rules:
+      - alert: ArgusHighErrorRate
+        expr: |
+          sum(rate(http_errors_total[5m])) by (service)
+          /
+          sum(rate(http_requests_total[5m])) by (service)
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Error rate for {{ $labels.service }}: {{ $value | humanizePercentage }}"
+
+      - alert: ArgusCriticalErrorRate
+        expr: |
+          sum(rate(http_errors_total[5m])) by (service)
+          /
+          sum(rate(http_requests_total[5m])) by (service)
+          > 0.15
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical error rate for {{ $labels.service }}: {{ $value | humanizePercentage }}"

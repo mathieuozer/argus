@@ -22,11 +22,12 @@ BIN_DIR := bin
 
 .PHONY: help dev dev-logs dev-down proto \
         build build-control-plane build-orchestrator build-telemetry build-identity build-gateway build-sidecar \
-        test test-int test-e2e test-cover \
+        test test-int test-e2e test-cover test-bench \
         lint fmt \
         run-control-plane run-orchestrator run-telemetry run-identity run-gateway run-sidecar \
         dashboard-dev dashboard-build \
-        clean docker-build
+        clean docker-build \
+        load-smoke load-stress load-soak
 
 # ─── Help ────────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,10 @@ test-cover: ## Run tests with coverage report
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 
+test-bench: ## Run benchmark tests across all packages
+	$(GOTEST) -bench=. -benchmem -benchtime=3s \
+		./pkg/metrics/... ./pkg/middleware/... ./pkg/health/...
+
 # ─── Lint & Format ──────────────────────────────────────────────────────────
 
 lint: ## Run golangci-lint across workspace
@@ -160,6 +165,17 @@ docker-build: ## Build all Docker images
 	docker build -t $(DOCKER_REGISTRY)/identity:$(DOCKER_TAG) -f deployments/docker/Dockerfile.identity .
 	docker build -t $(DOCKER_REGISTRY)/gateway:$(DOCKER_TAG) -f deployments/docker/Dockerfile.gateway .
 	docker build -t $(DOCKER_REGISTRY)/sidecar:$(DOCKER_TAG) -f deployments/docker/Dockerfile.sidecar .
+
+# ─── Load Tests ─────────────────────────────────────────────────────────
+
+load-smoke: ## Run k6 smoke test (5 users, 1.5 min)
+	k6 run tests/load/k6-smoke.js
+
+load-stress: ## Run k6 stress test (up to 200 users, 12 min)
+	k6 run tests/load/k6-stress.js
+
+load-soak: ## Run k6 soak test (30 users sustained, 10+ min)
+	k6 run tests/load/k6-soak.js
 
 # ─── Clean ───────────────────────────────────────────────────────────────────
 

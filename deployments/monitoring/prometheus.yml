@@ -1,0 +1,79 @@
+# Prometheus configuration for Argus local development
+# Used by docker-compose to scrape all Argus service metrics
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+rule_files:
+  - "/etc/prometheus/alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+      # Uncomment when AlertManager is deployed:
+      # - targets: ['alertmanager:9093']
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Argus Gateway
+  - job_name: "argus-gateway"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["gateway:8080"]
+    relabel_configs:
+      - target_label: service
+        replacement: gateway
+
+  # Argus Identity
+  - job_name: "argus-identity"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["identity:8081"]
+    relabel_configs:
+      - target_label: service
+        replacement: identity
+
+  # Argus Orchestrator
+  - job_name: "argus-orchestrator"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["orchestrator:8082"]
+    relabel_configs:
+      - target_label: service
+        replacement: orchestrator
+
+  # Argus Telemetry
+  - job_name: "argus-telemetry"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["telemetry:8083"]
+    relabel_configs:
+      - target_label: service
+        replacement: telemetry
+
+  # Argus Control Plane
+  - job_name: "argus-control-plane"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["control-plane:8084"]
+    relabel_configs:
+      - target_label: service
+        replacement: control-plane
+
+  # Argus Predictor (Python)
+  - job_name: "argus-predictor"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["predictor:8090"]
+    relabel_configs:
+      - target_label: service
+        replacement: predictor
+    # Predictor may not expose /metrics yet — tolerate failures
+    scrape_interval: 30s
