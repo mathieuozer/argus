@@ -18,6 +18,14 @@ jobs:
           setup_only: true
       - name: Generate protobuf
         run: cd proto && buf generate
+      - name: Check formatting
+        run: |
+          UNFORMATTED=$(gofmt -l services/ sidecar/ pkg/ sdk/go/)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "Files not formatted with gofmt:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
       - name: golangci-lint
         run: |
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
@@ -66,6 +74,11 @@ jobs:
         working-directory: sdk/python
         run: |
           PYTHONPATH=src python -m unittest discover -s tests -v
+      - name: Run predictor tests
+        working-directory: services/predictor
+        run: |
+          pip install fastapi pydantic numpy
+          python -m unittest test_predictor -v
 
   test-dashboard:
     runs-on: ubuntu-latest
