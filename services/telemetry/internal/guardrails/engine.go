@@ -20,15 +20,15 @@ const (
 
 // Rule defines a guardrail rule.
 type Rule struct {
-	ID          string   `json:"id"`
-	TenantID    string   `json:"tenant_id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Type        RuleType `json:"type"`
-	Pattern     string   `json:"pattern"`
-	Action      string   `json:"action"` // block, warn, log
-	Enabled     bool     `json:"enabled"`
-	AgentIDs    []string `json:"agent_ids"` // empty = all agents
+	ID          string    `json:"id"`
+	TenantID    string    `json:"tenant_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Type        RuleType  `json:"type"`
+	Pattern     string    `json:"pattern"`
+	Action      string    `json:"action"` // block, warn, log
+	Enabled     bool      `json:"enabled"`
+	AgentIDs    []string  `json:"agent_ids"` // empty = all agents
 	CreatedAt   time.Time `json:"created_at"`
 }
 

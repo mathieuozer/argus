@@ -53,10 +53,10 @@ func TestClassifyAttributes(t *testing.T) {
 		{
 			name: "mixed attributes are grouped correctly",
 			attrs: map[string]string{
-				"latency_ms":   "42",
-				"token_count":  "1500",
-				"task_desc":    "summarize document",
-				"full_input":   "the entire user prompt",
+				"latency_ms":    "42",
+				"token_count":   "1500",
+				"task_desc":     "summarize document",
+				"full_input":    "the entire user prompt",
 				"unknown_field": "value",
 			},
 			wantStructCount: 2,
@@ -73,9 +73,9 @@ func TestClassifyAttributes(t *testing.T) {
 		{
 			name: "all structural",
 			attrs: map[string]string{
-				"latency_ms":  "100",
-				"error_code":  "TIMEOUT",
-				"agent_id":    "agent-1",
+				"latency_ms": "100",
+				"error_code": "TIMEOUT",
+				"agent_id":   "agent-1",
 			},
 			wantStructCount: 3,
 			wantSensCount:   0,

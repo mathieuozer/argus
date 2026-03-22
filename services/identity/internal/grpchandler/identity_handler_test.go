@@ -105,10 +105,10 @@ func TestCreateSVID(t *testing.T) {
 
 func TestRenewSVID(t *testing.T) {
 	tests := []struct {
-		name       string
+		name        string
 		setupRevoke string
-		req        *identityv1.RenewSVIDRequest
-		wantCode   codes.Code
+		req         *identityv1.RenewSVIDRequest
+		wantCode    codes.Code
 	}{
 		{
 			name: "renew SVID successfully",
@@ -117,8 +117,8 @@ func TestRenewSVID(t *testing.T) {
 			},
 		},
 		{
-			name: "missing spiffe_id",
-			req:  &identityv1.RenewSVIDRequest{},
+			name:     "missing spiffe_id",
+			req:      &identityv1.RenewSVIDRequest{},
 			wantCode: codes.InvalidArgument,
 		},
 		{

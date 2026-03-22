@@ -203,12 +203,12 @@ func TestCORS(t *testing.T) {
 	handler := CORS(downstream)
 
 	tests := []struct {
-		name              string
-		method            string
-		wantStatus        int
-		wantBody          string
-		checkCORSHeaders  bool
-		expectNoBody      bool
+		name             string
+		method           string
+		wantStatus       int
+		wantBody         string
+		checkCORSHeaders bool
+		expectNoBody     bool
 	}{
 		{
 			name:             "OPTIONS preflight returns 204",

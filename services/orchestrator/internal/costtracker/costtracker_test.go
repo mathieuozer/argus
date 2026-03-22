@@ -11,15 +11,21 @@ func floatEquals(a, b float64) bool {
 
 func TestRecord(t *testing.T) {
 	tests := []struct {
-		name     string
-		records  []struct{ tenantID, agentID string; cost float64 }
+		name    string
+		records []struct {
+			tenantID, agentID string
+			cost              float64
+		}
 		checkTID string
 		checkAID string
 		wantCost float64
 	}{
 		{
 			name: "single record",
-			records: []struct{ tenantID, agentID string; cost float64 }{
+			records: []struct {
+				tenantID, agentID string
+				cost              float64
+			}{
 				{"tenant-1", "agent-1", 1.50},
 			},
 			checkTID: "tenant-1",
@@ -28,7 +34,10 @@ func TestRecord(t *testing.T) {
 		},
 		{
 			name: "accumulates costs for same agent",
-			records: []struct{ tenantID, agentID string; cost float64 }{
+			records: []struct {
+				tenantID, agentID string
+				cost              float64
+			}{
 				{"tenant-1", "agent-1", 1.50},
 				{"tenant-1", "agent-1", 2.50},
 				{"tenant-1", "agent-1", 0.75},
@@ -39,7 +48,10 @@ func TestRecord(t *testing.T) {
 		},
 		{
 			name: "separate agents tracked independently",
-			records: []struct{ tenantID, agentID string; cost float64 }{
+			records: []struct {
+				tenantID, agentID string
+				cost              float64
+			}{
 				{"tenant-1", "agent-1", 3.00},
 				{"tenant-1", "agent-2", 5.00},
 			},

@@ -6,18 +6,18 @@ import "fmt"
 type Code string
 
 const (
-	CodeTenantNotFound    Code = "TENANT_NOT_FOUND"
-	CodeAgentNotFound     Code = "AGENT_NOT_FOUND"
-	CodeAgentQuarantined  Code = "AGENT_QUARANTINED"
-	CodeTaskNotFound      Code = "TASK_NOT_FOUND"
-	CodeUnauthorized      Code = "UNAUTHORIZED"
-	CodeForbidden         Code = "FORBIDDEN"
-	CodeValidation        Code = "VALIDATION_ERROR"
-	CodeInternal          Code = "INTERNAL_ERROR"
-	CodeCertExpired       Code = "CERT_EXPIRED"
-	CodeCertRevoked       Code = "CERT_REVOKED"
-	CodeRateLimited       Code = "RATE_LIMITED"
-	CodeTierViolation     Code = "TIER_VIOLATION"
+	CodeTenantNotFound   Code = "TENANT_NOT_FOUND"
+	CodeAgentNotFound    Code = "AGENT_NOT_FOUND"
+	CodeAgentQuarantined Code = "AGENT_QUARANTINED"
+	CodeTaskNotFound     Code = "TASK_NOT_FOUND"
+	CodeUnauthorized     Code = "UNAUTHORIZED"
+	CodeForbidden        Code = "FORBIDDEN"
+	CodeValidation       Code = "VALIDATION_ERROR"
+	CodeInternal         Code = "INTERNAL_ERROR"
+	CodeCertExpired      Code = "CERT_EXPIRED"
+	CodeCertRevoked      Code = "CERT_REVOKED"
+	CodeRateLimited      Code = "RATE_LIMITED"
+	CodeTierViolation    Code = "TIER_VIOLATION"
 )
 
 // Error is a typed error with a code and message.

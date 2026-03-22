@@ -270,10 +270,10 @@ func TestGetTask(t *testing.T) {
 
 func TestUpdateTaskStatus(t *testing.T) {
 	tests := []struct {
-		name     string
-		setup    func(*registry.Registry, *statemachine.StateMachine) string
-		req      func(taskID string) *orchestrationv1.UpdateTaskStatusRequest
-		wantCode codes.Code
+		name       string
+		setup      func(*registry.Registry, *statemachine.StateMachine) string
+		req        func(taskID string) *orchestrationv1.UpdateTaskStatusRequest
+		wantCode   codes.Code
 		wantStatus orchestrationv1.TaskStatus
 	}{
 		{
@@ -606,8 +606,8 @@ func TestListTasks(t *testing.T) {
 
 func TestTaskStatusConversion(t *testing.T) {
 	tests := []struct {
-		name       string
-		smStatus   statemachine.TaskStatus
+		name        string
+		smStatus    statemachine.TaskStatus
 		protoStatus orchestrationv1.TaskStatus
 	}{
 		{"pending", statemachine.StatusPending, orchestrationv1.TaskStatus_TASK_STATUS_PENDING},

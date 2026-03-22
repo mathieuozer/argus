@@ -21,36 +21,36 @@ type CostEntry struct {
 
 // CostBreakdown provides aggregated cost information.
 type CostBreakdown struct {
-	TenantID      string               `json:"tenant_id"`
-	TotalCostUSD  float64              `json:"total_cost_usd"`
-	TotalTokens   int64                `json:"total_tokens"`
-	ByAgent       map[string]float64   `json:"by_agent"`
-	ByCategory    map[string]float64   `json:"by_category"`
-	ByModel       map[string]float64   `json:"by_model"`
-	EntryCount    int                  `json:"entry_count"`
+	TenantID     string             `json:"tenant_id"`
+	TotalCostUSD float64            `json:"total_cost_usd"`
+	TotalTokens  int64              `json:"total_tokens"`
+	ByAgent      map[string]float64 `json:"by_agent"`
+	ByCategory   map[string]float64 `json:"by_category"`
+	ByModel      map[string]float64 `json:"by_model"`
+	EntryCount   int                `json:"entry_count"`
 }
 
 // CostTrend represents cost data over a time window.
 type CostTrend struct {
-	Period      string  `json:"period"`     // "2024-01-15", "2024-01-15T14:00"
-	CostUSD     float64 `json:"cost_usd"`
-	TokensUsed  int64   `json:"tokens_used"`
-	EntryCount  int     `json:"entry_count"`
+	Period     string  `json:"period"` // "2024-01-15", "2024-01-15T14:00"
+	CostUSD    float64 `json:"cost_usd"`
+	TokensUsed int64   `json:"tokens_used"`
+	EntryCount int     `json:"entry_count"`
 }
 
 // Budget defines spending limits for a tenant or agent.
 type Budget struct {
-	ID            string    `json:"id"`
-	TenantID      string    `json:"tenant_id"`
-	AgentID       string    `json:"agent_id,omitempty"` // empty means tenant-wide
-	Name          string    `json:"name"`
-	LimitUSD      float64   `json:"limit_usd"`
-	PeriodType    string    `json:"period_type"` // "daily", "weekly", "monthly"
-	CurrentSpend  float64   `json:"current_spend"`
-	AlertThreshold float64  `json:"alert_threshold"` // 0.0 to 1.0, fraction of limit
-	Enabled       bool      `json:"enabled"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID             string    `json:"id"`
+	TenantID       string    `json:"tenant_id"`
+	AgentID        string    `json:"agent_id,omitempty"` // empty means tenant-wide
+	Name           string    `json:"name"`
+	LimitUSD       float64   `json:"limit_usd"`
+	PeriodType     string    `json:"period_type"` // "daily", "weekly", "monthly"
+	CurrentSpend   float64   `json:"current_spend"`
+	AlertThreshold float64   `json:"alert_threshold"` // 0.0 to 1.0, fraction of limit
+	Enabled        bool      `json:"enabled"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 // BudgetStatus provides current budget utilization information.

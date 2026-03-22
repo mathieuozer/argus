@@ -136,7 +136,7 @@ func classifyOperation(opName string, attrs map[string]string) (SourceType, stri
 			return SourceAPI, name, url
 		}
 		if model, ok := attrs["model"]; ok {
-			return SourceAPI, model+"_api", model
+			return SourceAPI, model + "_api", model
 		}
 	}
 

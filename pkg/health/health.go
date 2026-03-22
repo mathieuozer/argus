@@ -36,8 +36,8 @@ type Response struct {
 
 // Checker manages health checks for a service.
 type Checker struct {
-	mu       sync.RWMutex
-	checks   map[string]CheckFunc
+	mu        sync.RWMutex
+	checks    map[string]CheckFunc
 	startedAt time.Time
 }
 

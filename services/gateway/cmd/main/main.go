@@ -54,7 +54,7 @@ func main() {
 	handler := middleware.Recovery(log)(
 		middleware.SecurityHeaders(
 			middleware.CORSWithOrigin(
-				middleware.MaxBodySize(1<<20)(
+				middleware.MaxBodySize(1 << 20)(
 					middleware.RequestID(
 						metrics.HTTPMiddleware(metricsReg, "gateway")(
 							middleware.RequestLogger(log)(

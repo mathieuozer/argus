@@ -386,8 +386,8 @@ func TestHandleTraces_GET(t *testing.T) {
 			wantTraceCount: 2,
 		},
 		{
-			name:     "filters by agent_id query param",
-			tenantID: "tenant-a",
+			name:        "filters by agent_id query param",
+			tenantID:    "tenant-a",
 			queryParams: "agent_id=agent-1",
 			seed: func(s *Service) {
 				seedTrace(s, "tenant-a", "trace-1", "agent-1")

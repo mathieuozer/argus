@@ -400,10 +400,10 @@ func TestHandleSourceLineage(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:     "not found for missing source",
-			tenantID: "tenant-a",
-			sourceID: "nonexistent",
-			seed:     func(r *Repository) {},
+			name:       "not found for missing source",
+			tenantID:   "tenant-a",
+			sourceID:   "nonexistent",
+			seed:       func(r *Repository) {},
 			wantStatus: http.StatusNotFound,
 		},
 		{
@@ -436,9 +436,9 @@ func TestHandleSourceLineage(t *testing.T) {
 
 func TestHandleSourceLineage_VerifyGraph(t *testing.T) {
 	h, repo := newTestHandler()
-	repo.CreateSource("tenant-a", "raw-data", "desc", SourceTypeDatabase, "owner", "", nil, nil)  // src-1
-	repo.CreateSource("tenant-a", "processed", "desc", SourceTypeAPI, "owner", "", nil, nil)       // src-2
-	repo.CreateSource("tenant-a", "report", "desc", SourceTypeFile, "owner", "", nil, nil)         // src-3
+	repo.CreateSource("tenant-a", "raw-data", "desc", SourceTypeDatabase, "owner", "", nil, nil) // src-1
+	repo.CreateSource("tenant-a", "processed", "desc", SourceTypeAPI, "owner", "", nil, nil)     // src-2
+	repo.CreateSource("tenant-a", "report", "desc", SourceTypeFile, "owner", "", nil, nil)       // src-3
 	_, _ = repo.AddLineageEdge("tenant-a", "src-1", "src-2", "transform", "agent-1", "ETL")
 	_, _ = repo.AddLineageEdge("tenant-a", "src-2", "src-3", "aggregate", "agent-2", "Report gen")
 	mux := serveMux(h)

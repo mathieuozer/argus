@@ -116,9 +116,9 @@ func TestTaskRepository_Create_TaskFields(t *testing.T) {
 
 func TestTaskRepository_UpdateStatus_CompletionTime(t *testing.T) {
 	tests := []struct {
-		name           string
-		newStatus      statemachine.TaskStatus
-		wantCompleted  bool
+		name          string
+		newStatus     statemachine.TaskStatus
+		wantCompleted bool
 	}{
 		{
 			name:          "completed status sets completed_at",

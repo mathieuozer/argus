@@ -19,11 +19,11 @@ type Client struct {
 	batchSize  int
 	flushEvery time.Duration
 
-	mu       sync.Mutex
-	spans    []spanData
-	events   []eventData
-	stopCh   chan struct{}
-	stopped  bool
+	mu      sync.Mutex
+	spans   []spanData
+	events  []eventData
+	stopCh  chan struct{}
+	stopped bool
 }
 
 // Option configures the client.

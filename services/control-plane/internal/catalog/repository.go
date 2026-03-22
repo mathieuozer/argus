@@ -34,20 +34,20 @@ type Source struct {
 
 // LineageEdge represents a data flow relationship between two sources.
 type LineageEdge struct {
-	ID             string    `json:"id"`
-	TenantID       string    `json:"tenant_id"`
-	SourceID       string    `json:"source_id"`       // upstream data source
-	TargetID       string    `json:"target_id"`       // downstream data source
-	TransformType  string    `json:"transform_type"`  // "copy", "transform", "aggregate", "filter"
-	AgentID        string    `json:"agent_id"`        // agent performing the transform
-	Description    string    `json:"description"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID            string    `json:"id"`
+	TenantID      string    `json:"tenant_id"`
+	SourceID      string    `json:"source_id"`      // upstream data source
+	TargetID      string    `json:"target_id"`      // downstream data source
+	TransformType string    `json:"transform_type"` // "copy", "transform", "aggregate", "filter"
+	AgentID       string    `json:"agent_id"`       // agent performing the transform
+	Description   string    `json:"description"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // LineageGraph represents the full lineage graph for a source.
 type LineageGraph struct {
-	SourceID  string        `json:"source_id"`
-	Upstream  []*LineageNode `json:"upstream"`
+	SourceID   string         `json:"source_id"`
+	Upstream   []*LineageNode `json:"upstream"`
 	Downstream []*LineageNode `json:"downstream"`
 }
 
@@ -62,11 +62,11 @@ type LineageNode struct {
 
 // Repository provides in-memory storage for catalog sources and lineage.
 type Repository struct {
-	mu       sync.RWMutex
-	sources  []*Source
-	edges    []*LineageEdge
-	srcSeq   int
-	edgeSeq  int
+	mu      sync.RWMutex
+	sources []*Source
+	edges   []*LineageEdge
+	srcSeq  int
+	edgeSeq int
 }
 
 // NewRepository creates a new catalog repository.

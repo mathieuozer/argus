@@ -130,13 +130,13 @@ func (h *OrchestrationHandler) ListTasks(ctx context.Context, req *orchestration
 
 func taskToProto(t *statemachine.Task) *orchestrationv1.Task {
 	pt := &orchestrationv1.Task{
-		Id:        t.ID,
-		TenantId:  t.TenantID,
-		AgentId:   t.AgentID,
-		Status:    taskStatusToProto(t.Status),
-		InputHash: t.InputHash,
-		StartedAt: timestamppb.New(t.StartedAt),
-		CostUsd:   t.CostUSD,
+		Id:         t.ID,
+		TenantId:   t.TenantID,
+		AgentId:    t.AgentID,
+		Status:     taskStatusToProto(t.Status),
+		InputHash:  t.InputHash,
+		StartedAt:  timestamppb.New(t.StartedAt),
+		CostUsd:    t.CostUSD,
 		TokensUsed: t.TokensUsed,
 	}
 	if t.CompletedAt != nil {

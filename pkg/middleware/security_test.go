@@ -54,10 +54,10 @@ func TestSecurityHeaders(t *testing.T) {
 
 	expected := map[string]string{
 		"X-Content-Type-Options": "nosniff",
-		"X-Frame-Options":       "DENY",
-		"X-XSS-Protection":      "1; mode=block",
-		"Referrer-Policy":       "strict-origin-when-cross-origin",
-		"Cache-Control":         "no-store",
+		"X-Frame-Options":        "DENY",
+		"X-XSS-Protection":       "1; mode=block",
+		"Referrer-Policy":        "strict-origin-when-cross-origin",
+		"Cache-Control":          "no-store",
 	}
 	for header, value := range expected {
 		got := w.Header().Get(header)

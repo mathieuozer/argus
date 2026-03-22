@@ -28,8 +28,8 @@ import (
 	"github.com/argus-platform/argus/services/telemetry/internal/grpchandler"
 	telguardrails "github.com/argus-platform/argus/services/telemetry/internal/guardrails"
 	"github.com/argus-platform/argus/services/telemetry/internal/pii"
-	telrepo "github.com/argus-platform/argus/services/telemetry/internal/repository"
 	"github.com/argus-platform/argus/services/telemetry/internal/predictor"
+	telrepo "github.com/argus-platform/argus/services/telemetry/internal/repository"
 	"github.com/argus-platform/argus/services/telemetry/internal/residency"
 	"github.com/argus-platform/argus/services/telemetry/internal/storage"
 	"go.uber.org/zap"
@@ -334,7 +334,7 @@ func main() {
 	handler := middleware.Recovery(log)(
 		middleware.SecurityHeaders(
 			middleware.CORSWithOrigin(
-				middleware.MaxBodySize(1<<20)(
+				middleware.MaxBodySize(1 << 20)(
 					middleware.RequestID(
 						metrics.HTTPMiddleware(metricsReg, "telemetry")(
 							middleware.RequestLogger(log)(mux),
@@ -385,10 +385,10 @@ func toInterfaceMap(m map[string]string) map[string]interface{} {
 
 // spanDataTracker accumulates recent span data per agent for quality scoring.
 type spanDataTracker struct {
-	mu         sync.RWMutex
+	mu          sync.RWMutex
 	maxPerAgent int
-	records    map[string][]map[string]interface{}
-	timestamps map[string][]time.Time
+	records     map[string][]map[string]interface{}
+	timestamps  map[string][]time.Time
 }
 
 func newSpanDataTracker(maxPerAgent int) *spanDataTracker {

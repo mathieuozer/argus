@@ -10,10 +10,10 @@ import (
 
 func TestNew(t *testing.T) {
 	tests := []struct {
-		name      string
-		level     string
-		format    string
-		wantErr   bool
+		name    string
+		level   string
+		format  string
+		wantErr bool
 	}{
 		{
 			name:   "json format with info level",
@@ -86,8 +86,8 @@ func TestNew(t *testing.T) {
 
 func TestDefault(t *testing.T) {
 	tests := []struct {
-		name      string
-		envVars   map[string]string
+		name    string
+		envVars map[string]string
 	}{
 		{
 			name:    "no env vars set",
@@ -150,9 +150,9 @@ func TestDefault(t *testing.T) {
 
 func TestWithContextAndFromContext(t *testing.T) {
 	tests := []struct {
-		name         string
-		setupLogger  bool
-		wantFromCtx  bool
+		name        string
+		setupLogger bool
+		wantFromCtx bool
 	}{
 		{
 			name:        "logger stored and retrieved from context",

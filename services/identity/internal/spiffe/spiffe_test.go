@@ -44,13 +44,13 @@ func TestAgentID(t *testing.T) {
 
 func TestParse(t *testing.T) {
 	tests := []struct {
-		name          string
-		trustDomain   string
-		spiffeID      string
-		wantTenantID  string
-		wantAgentID   string
-		wantVersion   string
-		wantErr       bool
+		name         string
+		trustDomain  string
+		spiffeID     string
+		wantTenantID string
+		wantAgentID  string
+		wantVersion  string
+		wantErr      bool
 	}{
 		{
 			name:         "valid SPIFFE ID",

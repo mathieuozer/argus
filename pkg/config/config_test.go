@@ -116,9 +116,9 @@ func TestLoadDefaults(t *testing.T) {
 
 func TestLoadWithEnvVars(t *testing.T) {
 	tests := []struct {
-		name   string
-		envs   map[string]string
-		check  func(t *testing.T, cfg *Base)
+		name  string
+		envs  map[string]string
+		check func(t *testing.T, cfg *Base)
 	}{
 		{
 			name: "custom environment",

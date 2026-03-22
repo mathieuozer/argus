@@ -111,14 +111,14 @@ func (h *Handler) handleAlerts(w http.ResponseWriter, r *http.Request) {
 			Message  string          `json:"message"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 		alert := h.alerts.Fire(tenantID, req.AgentID, req.Severity, req.Title, req.Message)
 		h.auditLog.Write(tenantID, "system", "create_alert", "alert/"+alert.ID, req.Title)
 		httputil.WriteJSON(w, http.StatusCreated, toAlertItem(alert), tenantID)
 	default:
-		httputil.WriteError(w,http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 	}
 }
 
@@ -132,7 +132,7 @@ func (h *Handler) handleAlertByID(w http.ResponseWriter, r *http.Request) {
 	// Extract alert ID from path: /api/v1/alerts/{id}
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/alerts/"), "/")
 	if len(parts) == 0 || parts[0] == "" {
-		httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "alert ID required")
+		httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "alert ID required")
 		return
 	}
 	alertID := parts[0]
@@ -166,11 +166,10 @@ func (h *Handler) handleAuditLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method != http.MethodGet {
-		httputil.WriteError(w,http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
 
 	entries := h.auditLog.List(tenantID)
-	httputil.WriteJSON(w,http.StatusOK, entries, tenantID)
+	httputil.WriteJSON(w, http.StatusOK, entries, tenantID)
 }
-

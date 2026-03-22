@@ -10,15 +10,15 @@ import (
 
 // PredictiveAlert represents a pre-failure alert stored in PostgreSQL.
 type PredictiveAlert struct {
-	ID              string    `json:"id"`
-	TenantID        string    `json:"tenant_id"`
-	AgentID         string    `json:"agent_id"`
-	Probability     float64   `json:"probability"`
-	EstimatedTTFSec int       `json:"estimated_ttf_seconds"`
-	PrecursorType   string    `json:"precursor_type"`
-	Evidence        []string  `json:"evidence"`
-	Status          string    `json:"status"`
-	CreatedAt       time.Time `json:"created_at"`
+	ID              string     `json:"id"`
+	TenantID        string     `json:"tenant_id"`
+	AgentID         string     `json:"agent_id"`
+	Probability     float64    `json:"probability"`
+	EstimatedTTFSec int        `json:"estimated_ttf_seconds"`
+	PrecursorType   string     `json:"precursor_type"`
+	Evidence        []string   `json:"evidence"`
+	Status          string     `json:"status"`
+	CreatedAt       time.Time  `json:"created_at"`
 	ResolvedAt      *time.Time `json:"resolved_at,omitempty"`
 }
 

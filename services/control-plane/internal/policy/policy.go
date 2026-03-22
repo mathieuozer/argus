@@ -20,7 +20,7 @@ const (
 // Rule defines a single policy rule.
 type Rule struct {
 	ID       string `json:"id"`
-	Subject  string `json:"subject"`  // role or specific user
+	Subject  string `json:"subject"` // role or specific user
 	Action   Action `json:"action"`
 	Resource string `json:"resource"` // resource pattern (supports wildcards)
 	Effect   string `json:"effect"`   // "allow" or "deny"

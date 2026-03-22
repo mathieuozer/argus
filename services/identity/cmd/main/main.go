@@ -149,8 +149,8 @@ func main() {
 
 		if revocationStore.IsRevoked(req.SpiffeID) {
 			httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
-				"valid":   false,
-				"reason":  "revoked",
+				"valid":  false,
+				"reason": "revoked",
 			}, tenantID)
 			return
 		}
@@ -231,7 +231,7 @@ func main() {
 	handler := middleware.Recovery(log)(
 		middleware.SecurityHeaders(
 			middleware.CORSWithOrigin(
-				middleware.MaxBodySize(1<<20)(
+				middleware.MaxBodySize(1 << 20)(
 					middleware.RequestID(
 						metrics.HTTPMiddleware(metricsReg, "identity")(
 							middleware.RequestLogger(log)(mux),
@@ -269,4 +269,3 @@ func main() {
 	}
 	_ = cfg
 }
-

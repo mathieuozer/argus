@@ -449,7 +449,7 @@ func main() {
 	handler := middleware.Recovery(log)(
 		middleware.SecurityHeaders(
 			middleware.CORSWithOrigin(
-				middleware.MaxBodySize(1<<20)(
+				middleware.MaxBodySize(1 << 20)(
 					middleware.RequestID(
 						metrics.HTTPMiddleware(metricsReg, "orchestrator")(
 							middleware.RequestLogger(log)(mux),
@@ -549,4 +549,3 @@ func seedDemoData(reg *registry.Registry, sm *statemachine.StateMachine, costs *
 
 	log.Info("seeded demo data", zap.Int("agents", len(demoAgents)), zap.Int("tasks", len(taskDefs)))
 }
-

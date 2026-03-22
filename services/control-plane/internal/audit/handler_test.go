@@ -257,8 +257,8 @@ func TestHandleSearch_GET(t *testing.T) {
 		wantEntryCount int
 	}{
 		{
-			name:           "returns all entries when no filters",
-			tenantID:       "tenant-a",
+			name:     "returns all entries when no filters",
+			tenantID: "tenant-a",
 			seed: func(w *Writer) {
 				w.Write("tenant-a", "admin", "agent.register", "agent/budget", "")
 				w.Write("tenant-a", "system", "cert.rotate", "identity/ca", "")

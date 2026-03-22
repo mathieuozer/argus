@@ -26,15 +26,15 @@ var validTransitions = map[TaskStatus][]TaskStatus{
 
 // Task represents a task in the state machine.
 type Task struct {
-	ID          string      `json:"id"`
-	TenantID    string      `json:"tenant_id"`
-	AgentID     string      `json:"agent_id"`
-	Status      TaskStatus  `json:"status"`
-	InputHash   string      `json:"input_hash"`
-	StartedAt   time.Time   `json:"started_at"`
-	CompletedAt *time.Time  `json:"completed_at,omitempty"`
-	CostUSD     float64     `json:"cost_usd"`
-	TokensUsed  int64       `json:"tokens_used"`
+	ID          string     `json:"id"`
+	TenantID    string     `json:"tenant_id"`
+	AgentID     string     `json:"agent_id"`
+	Status      TaskStatus `json:"status"`
+	InputHash   string     `json:"input_hash"`
+	StartedAt   time.Time  `json:"started_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	CostUSD     float64    `json:"cost_usd"`
+	TokensUsed  int64      `json:"tokens_used"`
 }
 
 // StateMachine manages task state transitions.

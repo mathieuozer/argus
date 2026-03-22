@@ -80,9 +80,9 @@ func TestDriftDetector_Detect_WithDrift(t *testing.T) {
 	now := time.Now()
 
 	records := [][]map[string]interface{}{
-		{{"a": 1, "b": 2}},            // baseline: keys = {a, b}
-		{{"a": 1, "c": 3}},            // drifted: keys = {a, c}
-		{{"x": 1, "y": 2, "z": 3}},   // heavily drifted: keys = {x, y, z}
+		{{"a": 1, "b": 2}},         // baseline: keys = {a, b}
+		{{"a": 1, "c": 3}},         // drifted: keys = {a, c}
+		{{"x": 1, "y": 2, "z": 3}}, // heavily drifted: keys = {x, y, z}
 	}
 	timestamps := []time.Time{now, now.Add(1 * time.Minute), now.Add(2 * time.Minute)}
 

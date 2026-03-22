@@ -19,22 +19,22 @@ const (
 type Status string
 
 const (
-	StatusOpen           Status = "open"
-	StatusAcknowledged   Status = "acknowledged"
-	StatusResolved       Status = "resolved"
-	StatusFalsePositive  Status = "false_positive"
+	StatusOpen          Status = "open"
+	StatusAcknowledged  Status = "acknowledged"
+	StatusResolved      Status = "resolved"
+	StatusFalsePositive Status = "false_positive"
 )
 
 // Alert represents an alert.
 type Alert struct {
-	ID             string    `json:"id"`
-	TenantID       string    `json:"tenant_id"`
-	AgentID        string    `json:"agent_id"`
-	Severity       Severity  `json:"severity"`
-	Title          string    `json:"title"`
-	Message        string    `json:"message"`
-	Status         Status    `json:"status"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID             string     `json:"id"`
+	TenantID       string     `json:"tenant_id"`
+	AgentID        string     `json:"agent_id"`
+	Severity       Severity   `json:"severity"`
+	Title          string     `json:"title"`
+	Message        string     `json:"message"`
+	Status         Status     `json:"status"`
+	CreatedAt      time.Time  `json:"created_at"`
 	AcknowledgedAt *time.Time `json:"acknowledged_at,omitempty"`
 	ResolvedAt     *time.Time `json:"resolved_at,omitempty"`
 }

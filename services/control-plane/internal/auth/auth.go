@@ -46,7 +46,7 @@ func WithClaims(ctx context.Context, c *Claims) context.Context {
 
 // JWTMiddleware validates JWT tokens.
 type JWTMiddleware struct {
-	secret []byte
+	secret  []byte
 	devMode bool
 }
 

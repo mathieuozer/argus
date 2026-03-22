@@ -126,7 +126,7 @@ func TestPredictProbabilityBounds(t *testing.T) {
 		features *Features
 	}{
 		{
-			name: "all zeros",
+			name:     "all zeros",
 			features: &Features{},
 		},
 		{

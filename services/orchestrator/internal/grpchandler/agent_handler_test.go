@@ -326,9 +326,9 @@ func TestGetAgent(t *testing.T) {
 			wantID: "agent-1",
 		},
 		{
-			name:  "get non-existent agent",
-			setup: func(_ *registry.Registry) {},
-			req:   &agentv1.GetAgentRequest{TenantId: "tenant-1", AgentId: "agent-missing"},
+			name:     "get non-existent agent",
+			setup:    func(_ *registry.Registry) {},
+			req:      &agentv1.GetAgentRequest{TenantId: "tenant-1", AgentId: "agent-missing"},
 			wantCode: codes.NotFound,
 		},
 		{
@@ -389,9 +389,9 @@ func TestGetAgent(t *testing.T) {
 
 func TestAgentStatusConversion(t *testing.T) {
 	tests := []struct {
-		name          string
+		name           string
 		registryStatus registry.AgentStatus
-		protoStatus   agentv1.AgentStatus
+		protoStatus    agentv1.AgentStatus
 	}{
 		{"discovered", registry.StatusDiscovered, agentv1.AgentStatus_AGENT_STATUS_DISCOVERED},
 		{"healthy", registry.StatusHealthy, agentv1.AgentStatus_AGENT_STATUS_HEALTHY},

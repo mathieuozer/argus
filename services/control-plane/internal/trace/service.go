@@ -55,8 +55,8 @@ type TraceDetail struct {
 
 // FlameGraphNode represents a node in a flame graph visualization.
 type FlameGraphNode struct {
-	Name     string           `json:"name"`
-	Value    int64            `json:"value"`
+	Name     string            `json:"name"`
+	Value    int64             `json:"value"`
 	Children []*FlameGraphNode `json:"children"`
 }
 

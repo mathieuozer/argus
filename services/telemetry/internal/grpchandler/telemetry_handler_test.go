@@ -263,7 +263,7 @@ func TestQuerySpans(t *testing.T) {
 			wantCode: codes.InvalidArgument,
 		},
 		{
-			name:    "tenant isolation",
+			name: "tenant isolation",
 			setup: []*collector.Span{
 				{SpanID: "span-1", TenantID: "tenant-1", AgentID: "agent-1", TraceID: "trace-1"},
 			},

@@ -136,4 +136,3 @@ func (h *Handler) handleStats(w http.ResponseWriter, r *http.Request) {
 
 	httputil.WriteJSON(w, http.StatusOK, stats, tenantID)
 }
-

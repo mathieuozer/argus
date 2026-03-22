@@ -13,9 +13,9 @@ import (
 
 // Proxy intercepts agent I/O transparently.
 type Proxy struct {
-	logger        *zap.Logger
-	upstreamAddr  string
-	reverseProxy  *httputil.ReverseProxy
+	logger       *zap.Logger
+	upstreamAddr string
+	reverseProxy *httputil.ReverseProxy
 	requestCount int64
 }
 

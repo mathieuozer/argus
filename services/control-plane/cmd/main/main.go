@@ -223,7 +223,7 @@ func main() {
 	// Auth endpoint - generate tokens (dev mode)
 	mux.HandleFunc("/api/v1/auth/token", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			httputil.WriteError(w,http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -233,7 +233,7 @@ func main() {
 			Role     string `json:"role"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 
@@ -247,7 +247,7 @@ func main() {
 
 		token, err := jwtAuth.GenerateToken(claims)
 		if err != nil {
-			httputil.WriteError(w,http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
 			return
 		}
 
@@ -265,7 +265,7 @@ func main() {
 	// Login endpoint for the dashboard (dev mode: accepts any username/password)
 	mux.HandleFunc("/api/v1/auth/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			httputil.WriteError(w,http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -275,12 +275,12 @@ func main() {
 			TenantID string `json:"tenantId"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 
 		if req.Username == "" {
-			httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "username is required")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "username is required")
 			return
 		}
 		if req.TenantID == "" {
@@ -298,7 +298,7 @@ func main() {
 
 		token, err := jwtAuth.GenerateToken(claims)
 		if err != nil {
-			httputil.WriteError(w,http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
 			return
 		}
 
@@ -311,7 +311,7 @@ func main() {
 		}
 		refreshToken, err := jwtAuth.GenerateToken(refreshClaims)
 		if err != nil {
-			httputil.WriteError(w,http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate refresh token")
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate refresh token")
 			return
 		}
 
@@ -338,7 +338,7 @@ func main() {
 	// Token refresh endpoint for the dashboard
 	mux.HandleFunc("/api/v1/auth/refresh", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			httputil.WriteError(w,http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -346,13 +346,13 @@ func main() {
 			RefreshToken string `json:"refreshToken"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 
 		oldClaims, err := jwtAuth.ValidateToken(req.RefreshToken)
 		if err != nil {
-			httputil.WriteError(w,http.StatusUnauthorized, "UNAUTHORIZED", "invalid refresh token")
+			httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid refresh token")
 			return
 		}
 
@@ -366,7 +366,7 @@ func main() {
 
 		token, err := jwtAuth.GenerateToken(claims)
 		if err != nil {
-			httputil.WriteError(w,http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate token")
 			return
 		}
 
@@ -379,7 +379,7 @@ func main() {
 		}
 		newRefresh, err := jwtAuth.GenerateToken(refreshClaims)
 		if err != nil {
-			httputil.WriteError(w,http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate refresh token")
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to generate refresh token")
 			return
 		}
 
@@ -407,18 +407,18 @@ func main() {
 		switch r.Method {
 		case http.MethodGet:
 			rules := policyEngine.ListRules(tenantID)
-			httputil.WriteJSON(w,http.StatusOK, rules, tenantID)
+			httputil.WriteJSON(w, http.StatusOK, rules, tenantID)
 		case http.MethodPost:
 			var rule policy.Rule
 			if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
-				httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+				httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 				return
 			}
 			policyEngine.AddRule(tenantID, &rule)
 			auditLog.Write(tenantID, "system", "create_policy", "policy/"+rule.ID, "")
-			httputil.WriteJSON(w,http.StatusCreated, rule, tenantID)
+			httputil.WriteJSON(w, http.StatusCreated, rule, tenantID)
 		default:
-			httputil.WriteError(w,http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		}
 	})))
 
@@ -426,7 +426,7 @@ func main() {
 	mux.Handle("/api/v1/policies/evaluate", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID, _ := tenancy.FromContext(r.Context())
 		if r.Method != http.MethodPost {
-			httputil.WriteError(w,http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
 
@@ -436,17 +436,17 @@ func main() {
 			Resource string `json:"resource"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httputil.WriteError(w,http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
 
 		allowed, err := policyEngine.Evaluate(tenantID, req.Subject, policy.Action(req.Action), req.Resource)
 		if err != nil {
-			httputil.WriteError(w,http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 			return
 		}
 
-		httputil.WriteJSON(w,http.StatusOK, map[string]bool{"allowed": allowed}, tenantID)
+		httputil.WriteJSON(w, http.StatusOK, map[string]bool{"allowed": allowed}, tenantID)
 	})))
 
 	// Metrics endpoint — aggregates from local modules
@@ -498,7 +498,7 @@ func main() {
 			for i := 23; i >= 0; i-- {
 				ts := now.Add(-time.Duration(i) * time.Hour).Format(time.RFC3339)
 				totalTasks = append(totalTasks, map[string]interface{}{"timestamp": ts, "value": 12 + (i%5)*3})
-				activeAgents = append(activeAgents, map[string]interface{}{"timestamp": ts, "value": 5 + (i%3)})
+				activeAgents = append(activeAgents, map[string]interface{}{"timestamp": ts, "value": 5 + (i % 3)})
 				totalCostSeries = append(totalCostSeries, map[string]interface{}{"timestamp": ts, "value": 0.45 + float64(i%4)*0.12})
 				alertCountSeries = append(alertCountSeries, map[string]interface{}{"timestamp": ts, "value": i % 3})
 				errorRateSeries = append(errorRateSeries, map[string]interface{}{"timestamp": ts, "value": 0.01 + float64(i%7)*0.003})
@@ -525,7 +525,7 @@ func main() {
 	handler := middleware.Recovery(log)(
 		middleware.SecurityHeaders(
 			middleware.CORSWithOrigin(
-				middleware.MaxBodySize(1<<20)( // 1MB max request body
+				middleware.MaxBodySize(1 << 20)( // 1MB max request body
 					middleware.RequestID(
 						metrics.HTTPMiddleware(metricsReg, "control-plane")(
 							jwtAuth.Middleware(
@@ -818,13 +818,13 @@ func seedControlPlaneDemo(
 	promptsRepo.AddVersion(&prompts.PromptVersion{
 		ID: "pv-001", PromptID: "prompt-001", TenantID: tid, Version: 1,
 		Content: "You are a financial analysis agent. Reconcile budgets accurately.", ChangeLog: "Initial version",
-		Metrics: &prompts.VersionMetrics{AvgLatencyMs: 1450, SuccessRate: 0.89, TokensUsed: 45000, Invocations: 120},
+		Metrics:   &prompts.VersionMetrics{AvgLatencyMs: 1450, SuccessRate: 0.89, TokensUsed: 45000, Invocations: 120},
 		CreatedAt: now.Add(-14 * 24 * time.Hour),
 	})
 	promptsRepo.AddVersion(&prompts.PromptVersion{
 		ID: "pv-002", PromptID: "prompt-001", TenantID: tid, Version: 2,
 		Content: "You are a financial analysis agent specializing in budget reconciliation. Always verify totals before reporting.", ChangeLog: "Added verification step",
-		Metrics: &prompts.VersionMetrics{AvgLatencyMs: 1200, SuccessRate: 0.95, TokensUsed: 52000, Invocations: 85},
+		Metrics:   &prompts.VersionMetrics{AvgLatencyMs: 1200, SuccessRate: 0.95, TokensUsed: 52000, Invocations: 85},
 		CreatedAt: now.Add(-24 * time.Hour),
 	})
 	promptsRepo.AddPrompt(&prompts.Prompt{
@@ -835,7 +835,7 @@ func seedControlPlaneDemo(
 	promptsRepo.AddVersion(&prompts.PromptVersion{
 		ID: "pv-003", PromptID: "prompt-002", TenantID: tid, Version: 1,
 		Content: "Summarize the given document concisely, preserving key facts and figures.", ChangeLog: "Initial version",
-		Metrics: &prompts.VersionMetrics{AvgLatencyMs: 2100, SuccessRate: 0.97, TokensUsed: 38000, Invocations: 200},
+		Metrics:   &prompts.VersionMetrics{AvgLatencyMs: 2100, SuccessRate: 0.97, TokensUsed: 38000, Invocations: 200},
 		CreatedAt: now.Add(-7 * 24 * time.Hour),
 	})
 

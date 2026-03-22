@@ -216,10 +216,10 @@ func TestHMACSignAndVerify(t *testing.T) {
 
 func TestHMACVerifyFailsWithWrongData(t *testing.T) {
 	tests := []struct {
-		name      string
-		original  []byte
-		tampered  []byte
-		key       []byte
+		name     string
+		original []byte
+		tampered []byte
+		key      []byte
 	}{
 		{
 			name:     "different message",
@@ -259,10 +259,10 @@ func TestHMACVerifyFailsWithWrongData(t *testing.T) {
 
 func TestHMACVerifyFailsWithWrongKey(t *testing.T) {
 	tests := []struct {
-		name       string
-		data       []byte
-		signKey    []byte
-		verifyKey  []byte
+		name      string
+		data      []byte
+		signKey   []byte
+		verifyKey []byte
 	}{
 		{
 			name:      "different key",

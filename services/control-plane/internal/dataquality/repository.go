@@ -28,35 +28,35 @@ const (
 
 // Rule defines a data quality check to be applied to agent telemetry.
 type Rule struct {
-	ID          string   `json:"id"`
-	TenantID    string   `json:"tenant_id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Type        RuleType `json:"type"`
-	AgentID     string   `json:"agent_id,omitempty"` // empty means all agents
-	Field       string   `json:"field"`              // field to check (e.g. "latency_ms")
-	Operator    string   `json:"operator"`           // "gt", "lt", "eq", "not_null", "regex"
-	Threshold   string   `json:"threshold"`          // comparison value
-	Severity    Severity `json:"severity"`
-	Enabled     bool     `json:"enabled"`
+	ID          string    `json:"id"`
+	TenantID    string    `json:"tenant_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Type        RuleType  `json:"type"`
+	AgentID     string    `json:"agent_id,omitempty"` // empty means all agents
+	Field       string    `json:"field"`              // field to check (e.g. "latency_ms")
+	Operator    string    `json:"operator"`           // "gt", "lt", "eq", "not_null", "regex"
+	Threshold   string    `json:"threshold"`          // comparison value
+	Severity    Severity  `json:"severity"`
+	Enabled     bool      `json:"enabled"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // Score represents an aggregated data quality score for an agent.
 type Score struct {
-	ID              string    `json:"id"`
-	TenantID        string    `json:"tenant_id"`
-	AgentID         string    `json:"agent_id"`
-	OverallScore    float64   `json:"overall_score"`    // 0.0 to 100.0
-	CompletenessScore float64 `json:"completeness_score"`
-	AccuracyScore   float64   `json:"accuracy_score"`
-	ConsistencyScore float64  `json:"consistency_score"`
-	TimelinessScore float64   `json:"timeliness_score"`
-	TotalChecks     int       `json:"total_checks"`
-	PassedChecks    int       `json:"passed_checks"`
-	FailedChecks    int       `json:"failed_checks"`
-	EvaluatedAt     time.Time `json:"evaluated_at"`
+	ID                string    `json:"id"`
+	TenantID          string    `json:"tenant_id"`
+	AgentID           string    `json:"agent_id"`
+	OverallScore      float64   `json:"overall_score"` // 0.0 to 100.0
+	CompletenessScore float64   `json:"completeness_score"`
+	AccuracyScore     float64   `json:"accuracy_score"`
+	ConsistencyScore  float64   `json:"consistency_score"`
+	TimelinessScore   float64   `json:"timeliness_score"`
+	TotalChecks       int       `json:"total_checks"`
+	PassedChecks      int       `json:"passed_checks"`
+	FailedChecks      int       `json:"failed_checks"`
+	EvaluatedAt       time.Time `json:"evaluated_at"`
 }
 
 // Violation records a single data quality rule violation.

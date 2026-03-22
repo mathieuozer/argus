@@ -16,13 +16,13 @@ func TestNewDiscoverer(t *testing.T) {
 
 func TestDiscoverer_DiscoverFromSpan_Database(t *testing.T) {
 	tests := []struct {
-		name       string
-		opName     string
-		attrs      map[string]string
-		wantType   SourceType
-		wantName   string
-		wantIdent  string
-		wantNil    bool
+		name      string
+		opName    string
+		attrs     map[string]string
+		wantType  SourceType
+		wantName  string
+		wantIdent string
+		wantNil   bool
 	}{
 		{
 			name:      "database via connection string",

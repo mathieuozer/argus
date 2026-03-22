@@ -24,8 +24,8 @@ type SLO struct {
 	Description string    `json:"description"`
 	AgentID     string    `json:"agent_id,omitempty"` // empty means all agents
 	Type        SLOType   `json:"type"`
-	Target      float64   `json:"target"`   // target value (e.g. 99.9 for availability)
-	Window      string    `json:"window"`   // "7d", "30d", "90d"
+	Target      float64   `json:"target"` // target value (e.g. 99.9 for availability)
+	Window      string    `json:"window"` // "7d", "30d", "90d"
 	Enabled     bool      `json:"enabled"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -37,9 +37,9 @@ type Measurement struct {
 	TenantID  string    `json:"tenant_id"`
 	SLOID     string    `json:"slo_id"`
 	AgentID   string    `json:"agent_id"`
-	Value     float64   `json:"value"`      // measured value
-	Good      int64     `json:"good"`       // number of good events
-	Total     int64     `json:"total"`      // total events
+	Value     float64   `json:"value"` // measured value
+	Good      int64     `json:"good"`  // number of good events
+	Total     int64     `json:"total"` // total events
 	Timestamp time.Time `json:"timestamp"`
 }
 

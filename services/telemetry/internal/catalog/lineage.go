@@ -7,8 +7,8 @@ type LineageNode struct {
 
 type LineageEdge struct {
 	Source    string `json:"source"`
-	Target   string `json:"target"`
-	Label    string `json:"label"`
+	Target    string `json:"target"`
+	Label     string `json:"label"`
 	SpanCount int64  `json:"span_count"`
 }
 
@@ -54,22 +54,22 @@ func (lb *LineageBuilder) BuildGraph(tenantID string) *LineageGraph {
 				case "read":
 					edges = append(edges, LineageEdge{
 						Source:    source.Name,
-						Target:   agentID,
-						Label:    "read",
+						Target:    agentID,
+						Label:     "read",
 						SpanCount: source.SpanCount,
 					})
 				case "write":
 					edges = append(edges, LineageEdge{
 						Source:    agentID,
-						Target:   source.Name,
-						Label:    "write",
+						Target:    source.Name,
+						Label:     "write",
 						SpanCount: source.SpanCount,
 					})
 				case "call":
 					edges = append(edges, LineageEdge{
 						Source:    agentID,
-						Target:   source.Name,
-						Label:    "call",
+						Target:    source.Name,
+						Label:     "call",
 						SpanCount: source.SpanCount,
 					})
 				}

@@ -51,9 +51,9 @@ func TestDefaultRoutes(t *testing.T) {
 	routes := DefaultRoutes()
 
 	tests := []struct {
-		name       string
-		idx        int
-		wantPrefix string
+		name        string
+		idx         int
+		wantPrefix  string
 		wantBackend string
 	}{
 		{
