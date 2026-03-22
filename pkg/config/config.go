@@ -39,7 +39,45 @@ func Load() (*Base, error) {
 
 	cfg.AirGap = getEnv("ARGUS_AIR_GAP", "false") == "true"
 
+	if err := cfg.Validate(); err != nil {
+		return cfg, err
+	}
+
 	return cfg, nil
+}
+
+// Validate checks that the configuration is consistent and safe.
+func (c *Base) Validate() error {
+	validEnvs := map[string]bool{"development": true, "staging": true, "production": true, "test": true}
+	if !validEnvs[c.Env] {
+		return fmt.Errorf("ARGUS_ENV must be one of development, staging, production, test; got %q", c.Env)
+	}
+
+	validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
+	if !validLevels[c.LogLevel] {
+		return fmt.Errorf("ARGUS_LOG_LEVEL must be one of debug, info, warn, error; got %q", c.LogLevel)
+	}
+
+	if c.DBMaxConns < 1 || c.DBMaxConns > 200 {
+		return fmt.Errorf("ARGUS_DB_MAX_CONNS must be between 1 and 200; got %d", c.DBMaxConns)
+	}
+
+	// In production, require a JWT secret
+	if c.Env == "production" {
+		if os.Getenv("ARGUS_JWT_SECRET") == "" {
+			return fmt.Errorf("ARGUS_JWT_SECRET is required in production")
+		}
+		if c.TenantEnforcement != "strict" {
+			return fmt.Errorf("ARGUS_TENANT_ENFORCEMENT must be 'strict' in production")
+		}
+	}
+
+	return nil
+}
+
+// IsProduction returns true if running in production mode.
+func (c *Base) IsProduction() bool {
+	return c.Env == "production"
 }
 
 func getEnv(key, fallback string) string {

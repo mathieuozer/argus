@@ -14,6 +14,7 @@ import (
 
 	"github.com/argus-platform/argus/pkg/config"
 	"github.com/argus-platform/argus/pkg/database"
+	"github.com/argus-platform/argus/pkg/health"
 	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
@@ -178,12 +179,19 @@ func main() {
 		}
 	}()
 
+	// Health checks with dependency verification
+	healthChecker := health.NewChecker()
+	if dbPool != nil {
+		healthChecker.AddCheck("postgres", func(ctx context.Context) error {
+			return dbPool.Ping(ctx)
+		})
+	}
+
 	// HTTP REST API
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
+	mux.HandleFunc("/health", healthChecker.Handler())
+	mux.HandleFunc("/health/live", healthChecker.LiveHandler())
+	mux.HandleFunc("/health/ready", healthChecker.ReadyHandler())
 
 	// Dashboard endpoints (alerts, audit)
 	dashHandler.RegisterRoutes(mux)
@@ -503,19 +511,24 @@ func main() {
 		}, tenantID)
 	})))
 
-	// Wrap with auth + tenant + logging middleware.
-	// TenantHTTP extracts X-Tenant-ID header into tenancy context.
-	// It is applied after auth so that all API routes have tenant context.
-	// /health and /api/v1/auth/token are excluded (they don't need tenant).
+	// Wrap with auth + tenant + logging + security middleware.
 	tenantMw := tenantMiddlewareWithExclusions(
 		middleware.TenantHTTP,
 		"/health",
 		"/api/v1/auth/",
 	)
-	handler := middleware.CORS(
-		jwtAuth.Middleware(
-			tenantMw(
-				middleware.RequestLogger(log)(mux),
+	handler := middleware.Recovery(log)(
+		middleware.SecurityHeaders(
+			middleware.CORSWithOrigin(
+				middleware.MaxBodySize(1<<20)( // 1MB max request body
+					middleware.RequestID(
+						jwtAuth.Middleware(
+							tenantMw(
+								middleware.RequestLogger(log)(mux),
+							),
+						),
+					),
+				),
 			),
 		),
 	)

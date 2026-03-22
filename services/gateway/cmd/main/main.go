@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/argus-platform/argus/pkg/config"
+	"github.com/argus-platform/argus/pkg/health"
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/services/gateway/internal/mtls"
@@ -35,20 +36,29 @@ func main() {
 	// WebSocket proxy for real-time streams
 	wsHandler := websocket.New(websocket.DefaultRoutes(), log)
 
+	healthChecker := health.NewChecker()
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
+	mux.HandleFunc("/health", healthChecker.Handler())
+	mux.HandleFunc("/health/live", healthChecker.LiveHandler())
+	mux.HandleFunc("/health/ready", healthChecker.ReadyHandler())
 
 	// Register WebSocket routes before the catch-all proxy.
 	wsHandler.RegisterRoutes(mux)
 
 	mux.Handle("/", reverseProxy)
 
-	handler := middleware.CORS(
-		middleware.RequestLogger(log)(
-			limiter.Middleware(mux),
+	handler := middleware.Recovery(log)(
+		middleware.SecurityHeaders(
+			middleware.CORSWithOrigin(
+				middleware.MaxBodySize(1<<20)(
+					middleware.RequestID(
+						middleware.RequestLogger(log)(
+							limiter.Middleware(mux),
+						),
+					),
+				),
+			),
 		),
 	)
 

@@ -123,7 +123,8 @@ func TestLoadWithEnvVars(t *testing.T) {
 		{
 			name: "custom environment",
 			envs: map[string]string{
-				"ARGUS_ENV": "production",
+				"ARGUS_ENV":        "production",
+				"ARGUS_JWT_SECRET": "test-secret-for-production-validation",
 			},
 			check: func(t *testing.T, cfg *Base) {
 				if cfg.Env != "production" {

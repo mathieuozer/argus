@@ -14,6 +14,7 @@ import (
 
 	identityv1 "github.com/argus-platform/argus/gen/go/identity"
 	"github.com/argus-platform/argus/pkg/config"
+	"github.com/argus-platform/argus/pkg/health"
 	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
@@ -67,12 +68,14 @@ func main() {
 		}
 	}()
 
+	// Health checks with dependency verification
+	healthChecker := health.NewChecker()
+
 	// HTTP server with REST API
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
+	mux.HandleFunc("/health", healthChecker.Handler())
+	mux.HandleFunc("/health/live", healthChecker.LiveHandler())
+	mux.HandleFunc("/health/ready", healthChecker.ReadyHandler())
 
 	// SVID creation endpoint
 	mux.Handle("/api/v1/identity/svid", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -220,7 +223,17 @@ func main() {
 		_, _ = w.Write(authority.CACertPEM())
 	})
 
-	handler := middleware.CORS(middleware.RequestLogger(log)(mux))
+	handler := middleware.Recovery(log)(
+		middleware.SecurityHeaders(
+			middleware.CORSWithOrigin(
+				middleware.MaxBodySize(1<<20)(
+					middleware.RequestID(
+						middleware.RequestLogger(log)(mux),
+					),
+				),
+			),
+		),
+	)
 
 	httpSrv := &http.Server{
 		Addr:         ":8081",

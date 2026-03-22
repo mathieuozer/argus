@@ -15,6 +15,7 @@ import (
 	telemetryv1 "github.com/argus-platform/argus/gen/go/telemetry"
 	"github.com/argus-platform/argus/pkg/config"
 	"github.com/argus-platform/argus/pkg/database"
+	"github.com/argus-platform/argus/pkg/health"
 	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/middleware"
@@ -50,6 +51,7 @@ func main() {
 	predictorClient := predictor.NewClient("localhost:8090")
 
 	// Initialize PostgreSQL persistence if DSN is configured
+	var dbPool *database.Pool
 	var spanRepo *telrepo.SpanRepository
 	if dsn := os.Getenv("ARGUS_DB_DSN"); dsn != "" {
 		ctx := context.Background()
@@ -57,6 +59,7 @@ func main() {
 		if err != nil {
 			log.Warn("failed to connect to database, using in-memory stores", zap.Error(err))
 		} else {
+			dbPool = pool
 			spanRepo = telrepo.NewSpanRepository(pool)
 			log.Info("PostgreSQL persistence enabled for telemetry")
 			defer pool.Close()
@@ -122,12 +125,19 @@ func main() {
 		}
 	}()
 
+	// Health checks with dependency verification
+	healthChecker := health.NewChecker()
+	if dbPool != nil {
+		healthChecker.AddCheck("postgres", func(ctx context.Context) error {
+			return dbPool.Ping(ctx)
+		})
+	}
+
 	// HTTP server
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
+	mux.HandleFunc("/health", healthChecker.Handler())
+	mux.HandleFunc("/health/live", healthChecker.LiveHandler())
+	mux.HandleFunc("/health/ready", healthChecker.ReadyHandler())
 
 	// Span ingestion endpoint
 	mux.Handle("/api/v1/telemetry/spans", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -316,7 +326,17 @@ func main() {
 		httputil.WriteJSON(w, http.StatusOK, score, tenantID)
 	})))
 
-	handler := middleware.CORS(middleware.RequestLogger(log)(mux))
+	handler := middleware.Recovery(log)(
+		middleware.SecurityHeaders(
+			middleware.CORSWithOrigin(
+				middleware.MaxBodySize(1<<20)(
+					middleware.RequestID(
+						middleware.RequestLogger(log)(mux),
+					),
+				),
+			),
+		),
+	)
 
 	httpSrv := &http.Server{
 		Addr:         ":8083",
