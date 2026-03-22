@@ -3,6 +3,7 @@ package dataquality
 import (
 	"encoding/json"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/argus-platform/argus/pkg/tenancy"
@@ -19,11 +20,15 @@ func NewHandler(repo *Repository) *Handler {
 }
 
 // RegisterRoutes registers all data quality API routes on the mux.
+// Both /dataquality/ and /data-quality/ paths are registered for dashboard compatibility.
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/v1/dataquality/rules", h.handleRules)
-	mux.HandleFunc("/api/v1/dataquality/rules/", h.handleRuleByID)
-	mux.HandleFunc("/api/v1/dataquality/scores", h.handleScores)
-	mux.HandleFunc("/api/v1/dataquality/violations", h.handleViolations)
+	for _, prefix := range []string{"/api/v1/dataquality", "/api/v1/data-quality"} {
+		mux.HandleFunc(prefix+"/rules", h.handleRules)
+		mux.HandleFunc(prefix+"/rules/", h.handleRuleByID)
+		mux.HandleFunc(prefix+"/scores", h.handleScores)
+		mux.HandleFunc(prefix+"/violations", h.handleViolations)
+		mux.HandleFunc(prefix+"/drift/", h.handleDrift)
+	}
 }
 
 func (h *Handler) handleRules(w http.ResponseWriter, r *http.Request) {
@@ -169,13 +174,40 @@ func (h *Handler) handleViolations(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, violations, tenantID)
 }
 
+func (h *Handler) handleDrift(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenancy.FromContext(r.Context())
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, []interface{}{}, tenantID)
+}
+
 func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"data": data,
+		"data": ensureNotNil(data),
 		"meta": map[string]string{"tenant_id": tenantID},
 	})
+}
+
+// ensureNotNil converts nil slice/pointer values to an empty slice for JSON encoding.
+func ensureNotNil(v interface{}) interface{} {
+	if v == nil {
+		return []interface{}{}
+	}
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Slice && rv.IsNil() {
+		return []interface{}{}
+	}
+	return v
 }
 
 func writeError(w http.ResponseWriter, status int, code, message string) {

@@ -3,6 +3,7 @@ package feedback
 import (
 	"encoding/json"
 	"net/http"
+	"reflect"
 	"sync"
 	"time"
 
@@ -142,7 +143,18 @@ func (h *Handler) GetSummary(w http.ResponseWriter, r *http.Request) {
 func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{"data": data, "meta": map[string]any{}})
+	_ = json.NewEncoder(w).Encode(map[string]any{"data": ensureNotNil(data), "meta": map[string]any{}})
+}
+
+func ensureNotNil(v interface{}) interface{} {
+	if v == nil {
+		return []interface{}{}
+	}
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Slice && rv.IsNil() {
+		return []interface{}{}
+	}
+	return v
 }
 
 func writeError(w http.ResponseWriter, status int, code, message string) {

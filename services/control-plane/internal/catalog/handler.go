@@ -3,6 +3,7 @@ package catalog
 import (
 	"encoding/json"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/argus-platform/argus/pkg/tenancy"
@@ -23,6 +24,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/catalog/sources", h.handleSources)
 	mux.HandleFunc("/api/v1/catalog/sources/", h.handleSourceByID)
 	mux.HandleFunc("/api/v1/catalog/lineage", h.handleLineageEdges)
+	mux.HandleFunc("/api/v1/catalog/lineage/graph", h.handleLineageEdges)
+	mux.HandleFunc("/api/v1/catalog/tools", h.handleTools)
 }
 
 func (h *Handler) handleSources(w http.ResponseWriter, r *http.Request) {
@@ -182,13 +185,39 @@ func (h *Handler) handleLineageEdges(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) handleTools(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenancy.FromContext(r.Context())
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, []interface{}{}, tenantID)
+}
+
 func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"data": data,
+		"data": ensureNotNil(data),
 		"meta": map[string]string{"tenant_id": tenantID},
 	})
+}
+
+func ensureNotNil(v interface{}) interface{} {
+	if v == nil {
+		return []interface{}{}
+	}
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Slice && rv.IsNil() {
+		return []interface{}{}
+	}
+	return v
 }
 
 func writeError(w http.ResponseWriter, status int, code, message string) {

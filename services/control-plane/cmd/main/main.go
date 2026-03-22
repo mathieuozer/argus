@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"reflect"
 	"strings"
 	"syscall"
 	"time"
@@ -496,9 +497,20 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}, tenantID str
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"data": data,
+		"data": ensureNotNil(data),
 		"meta": map[string]string{"tenant_id": tenantID},
 	})
+}
+
+func ensureNotNil(v interface{}) interface{} {
+	if v == nil {
+		return []interface{}{}
+	}
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Slice && rv.IsNil() {
+		return []interface{}{}
+	}
+	return v
 }
 
 func writeError(w http.ResponseWriter, status int, code, message string) {
