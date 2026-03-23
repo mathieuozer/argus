@@ -1,6 +1,8 @@
 package rag
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -76,8 +78,79 @@ func NewHandler(repo *Repository) *Handler {
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/rag/retrievals", h.ListRetrievals)
+	mux.HandleFunc("POST /api/v1/rag/retrievals", h.CreateRetrieval)
 	mux.HandleFunc("GET /api/v1/rag/sources", h.ListSources)
+	mux.HandleFunc("POST /api/v1/rag/sources", h.CreateSource)
 	mux.HandleFunc("GET /api/v1/rag/quality", h.GetQuality)
+}
+
+func (h *Handler) CreateRetrieval(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenancy.FromContext(r.Context())
+	if err != nil {
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		return
+	}
+
+	var req struct {
+		AgentID      string   `json:"agent_id"`
+		SpanID       string   `json:"span_id"`
+		Query        string   `json:"query"`
+		NumChunks    int      `json:"num_chunks"`
+		AvgRelevance float64  `json:"avg_relevance"`
+		LatencyMs    int64    `json:"latency_ms"`
+		SourceIDs    []string `json:"source_ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		return
+	}
+
+	ret := &Retrieval{
+		ID:           fmt.Sprintf("ret-%d", time.Now().UnixNano()),
+		TenantID:     tenantID,
+		AgentID:      req.AgentID,
+		SpanID:       req.SpanID,
+		Query:        req.Query,
+		NumChunks:    req.NumChunks,
+		AvgRelevance: req.AvgRelevance,
+		LatencyMs:    req.LatencyMs,
+		SourceIDs:    req.SourceIDs,
+		CreatedAt:    time.Now(),
+	}
+	h.repo.AddRetrieval(ret)
+	httputil.WriteJSON(w, http.StatusCreated, ret, "")
+}
+
+func (h *Handler) CreateSource(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenancy.FromContext(r.Context())
+	if err != nil {
+		httputil.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Tenant not found in context")
+		return
+	}
+
+	var req struct {
+		Name         string  `json:"name"`
+		Type         string  `json:"type"`
+		TotalChunks  int     `json:"total_chunks"`
+		AvgRelevance float64 `json:"avg_relevance"`
+		UsageCount   int     `json:"usage_count"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		return
+	}
+
+	src := &Source{
+		ID:           fmt.Sprintf("src-%d", time.Now().UnixNano()),
+		TenantID:     tenantID,
+		Name:         req.Name,
+		Type:         req.Type,
+		TotalChunks:  req.TotalChunks,
+		AvgRelevance: req.AvgRelevance,
+		UsageCount:   req.UsageCount,
+	}
+	h.repo.AddSource(src)
+	httputil.WriteJSON(w, http.StatusCreated, src, "")
 }
 
 func (h *Handler) ListRetrievals(w http.ResponseWriter, r *http.Request) {

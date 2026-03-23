@@ -500,7 +500,7 @@ func TestHandleScores_MethodNotAllowed(t *testing.T) {
 	h, _ := newTestHandler()
 	mux := serveMux(h)
 
-	req := requestWithTenant(http.MethodPost, "/api/v1/dataquality/scores", "tenant-a", "")
+	req := requestWithTenant(http.MethodDelete, "/api/v1/dataquality/scores", "tenant-a", "")
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 

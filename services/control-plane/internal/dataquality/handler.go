@@ -136,24 +136,40 @@ func (h *Handler) handleScores(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method != http.MethodGet {
-		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
-		return
-	}
-
-	agentID := r.URL.Query().Get("agent_id")
-	if agentID != "" {
-		score := h.repo.GetLatestScore(tenantID, agentID)
-		if score == nil {
-			httputil.WriteError(w, http.StatusNotFound, "SCORE_NOT_FOUND", "no score found for agent")
+	switch r.Method {
+	case http.MethodGet:
+		agentID := r.URL.Query().Get("agent_id")
+		if agentID != "" {
+			score := h.repo.GetLatestScore(tenantID, agentID)
+			if score == nil {
+				httputil.WriteError(w, http.StatusNotFound, "SCORE_NOT_FOUND", "no score found for agent")
+				return
+			}
+			httputil.WriteJSON(w, http.StatusOK, score, tenantID)
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, score, tenantID)
-		return
-	}
+		scores := h.repo.ListScores(tenantID, "")
+		httputil.WriteJSON(w, http.StatusOK, scores, tenantID)
 
-	scores := h.repo.ListScores(tenantID, "")
-	httputil.WriteJSON(w, http.StatusOK, scores, tenantID)
+	case http.MethodPost:
+		var req struct {
+			AgentID      string  `json:"agent_id"`
+			Completeness float64 `json:"completeness"`
+			Consistency  float64 `json:"consistency"`
+			Timeliness   float64 `json:"timeliness"`
+			Validity     float64 `json:"validity"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+			return
+		}
+		overall := (req.Completeness + req.Consistency + req.Timeliness + req.Validity) / 4.0 * 100
+		h.repo.RecordScore(tenantID, req.AgentID, overall, req.Completeness*100, req.Consistency*100, req.Timeliness*100, req.Validity*100, 100, 0, 0)
+		httputil.WriteJSON(w, http.StatusCreated, map[string]string{"status": "recorded"}, tenantID)
+
+	default:
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+	}
 }
 
 func (h *Handler) handleViolations(w http.ResponseWriter, r *http.Request) {

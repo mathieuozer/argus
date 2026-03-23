@@ -85,6 +85,36 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/costs/budgets", h.handleBudgets)
 	mux.HandleFunc("/api/v1/costs/budgets/", h.handleBudgetByID)
 	mux.HandleFunc("/api/v1/costs/anomalies", h.handleAnomalies)
+	mux.HandleFunc("/api/v1/costs/record", h.handleRecord)
+}
+
+func (h *Handler) handleRecord(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenancy.FromContext(r.Context())
+	if err != nil {
+		httputil.WriteError(w, http.StatusBadRequest, "TENANT_REQUIRED", "tenant context required")
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+		return
+	}
+
+	var req struct {
+		AgentID    string  `json:"agent_id"`
+		TaskID     string  `json:"task_id"`
+		Model      string  `json:"model"`
+		CostUSD    float64 `json:"cost_usd"`
+		TokensUsed int64   `json:"tokens_used"`
+		Category   string  `json:"category"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
+		return
+	}
+
+	entry := h.repo.RecordCost(tenantID, req.AgentID, req.TaskID, req.CostUSD, req.TokensUsed, req.Model, req.Category)
+	httputil.WriteJSON(w, http.StatusCreated, entry, tenantID)
 }
 
 func (h *Handler) handleBreakdown(w http.ResponseWriter, r *http.Request) {

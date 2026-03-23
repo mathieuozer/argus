@@ -148,6 +148,9 @@ run-gateway: ## Run gateway service locally
 run-sidecar: ## Run sidecar locally
 	go run ./sidecar/cmd/main
 
+run-simulator: ## Run simulator locally (requires services running)
+	go run ./demo/simulator/cmd/main
+
 # ─── Dashboard ───────────────────────────────────────────────────────────────
 
 dashboard-dev: ## Start dashboard dev server (http://localhost:5173)

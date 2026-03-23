@@ -90,8 +90,52 @@ func NewHandler(repo *Repository) *Handler {
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/guardrails/rules", h.CreateRule)
 	mux.HandleFunc("GET /api/v1/guardrails/rules", h.ListRules)
+	mux.HandleFunc("POST /api/v1/guardrails/violations", h.CreateViolation)
 	mux.HandleFunc("GET /api/v1/guardrails/violations", h.ListViolations)
 	mux.HandleFunc("GET /api/v1/guardrails/stats", h.GetStats)
+}
+
+// CreateViolation handles POST /api/v1/guardrails/violations.
+func (h *Handler) CreateViolation(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenancy.FromContext(r.Context())
+	if err != nil {
+		httputil.WriteError(w, http.StatusUnauthorized, "TENANT_REQUIRED", "Tenant ID is required")
+		return
+	}
+
+	var req struct {
+		RuleID  string `json:"rule_id"`
+		AgentID string `json:"agent_id"`
+		SpanID  string `json:"span_id"`
+		Action  string `json:"action"`
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		return
+	}
+
+	v := &Violation{
+		ID:        "gv-" + time.Now().Format("20060102150405.000"),
+		TenantID:  tenantID,
+		RuleID:    req.RuleID,
+		AgentID:   req.AgentID,
+		SpanID:    req.SpanID,
+		Action:    req.Action,
+		Content:   req.Content,
+		CreatedAt: time.Now(),
+	}
+
+	// Look up rule name/type
+	h.repo.mu.RLock()
+	if rule, ok := h.repo.rules[req.RuleID]; ok {
+		v.RuleName = rule.Name
+		v.RuleType = rule.Type
+	}
+	h.repo.mu.RUnlock()
+
+	h.repo.AddViolation(v)
+	httputil.WriteJSON(w, http.StatusCreated, v, "")
 }
 
 // CreateRule handles POST /api/v1/guardrails/rules.

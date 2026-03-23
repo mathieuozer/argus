@@ -215,6 +215,24 @@ services:
     networks:
       - argus-net
 
+  # ── Simulator ─────────────────────────────────────────────────────────
+
+  simulator:
+    build:
+      context: ../..
+      dockerfile: demo/simulator/Dockerfile
+    environment:
+      SIMULATOR_ORCHESTRATOR_URL: http://orchestrator:8082
+      SIMULATOR_CONTROL_PLANE_URL: http://control-plane:8084
+      SIMULATOR_TELEMETRY_URL: http://telemetry:8083
+    depends_on:
+      - orchestrator
+      - control-plane
+      - telemetry
+    restart: on-failure
+    networks:
+      - argus-net
+
   # ── Dashboard ───────────────────────────────────────────────────────────
 
   dashboard:
