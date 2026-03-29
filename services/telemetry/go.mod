@@ -3,9 +3,8 @@ module github.com/argus-platform/argus/services/telemetry
 go 1.26.1
 
 require (
-	github.com/argus-platform/argus/gen/go v0.0.0
 	github.com/argus-platform/argus/pkg v0.0.0
-	github.com/jackc/pgx/v5 v5.9.0
+	github.com/jackc/pgx/v5 v5.9.1
 	github.com/nats-io/nats.go v1.49.0
 	go.uber.org/zap v1.27.1
 	google.golang.org/grpc v1.79.3
