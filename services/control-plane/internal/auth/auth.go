@@ -63,20 +63,32 @@ func (m *JWTMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 
-		if auth == "" {
-			if m.devMode {
-				// In dev mode, create synthetic claims
-				claims := &Claims{
+		// In dev mode, always allow with synthetic claims when no token or invalid token
+		if m.devMode {
+			var claims *Claims
+			if auth != "" {
+				token := strings.TrimPrefix(auth, "Bearer ")
+				if token != auth {
+					if parsed, err := m.ValidateToken(token); err == nil && parsed.Exp >= time.Now().Unix() {
+						claims = parsed
+					}
+				}
+			}
+			if claims == nil {
+				claims = &Claims{
 					Sub:      "dev-user",
 					TenantID: r.Header.Get("X-Tenant-ID"),
 					Role:     RoleAdmin,
 					Iat:      time.Now().Unix(),
 					Exp:      time.Now().Add(time.Hour).Unix(),
 				}
-				ctx := WithClaims(r.Context(), claims)
-				next.ServeHTTP(w, r.WithContext(ctx))
-				return
 			}
+			ctx := WithClaims(r.Context(), claims)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+
+		if auth == "" {
 			writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "authorization header required")
 			return
 		}
