@@ -521,6 +521,37 @@ func main() {
 		}, tenantID)
 	})))
 
+	// Agent and task stub endpoints (served from control-plane for dev convenience
+	// when the orchestrator is not running separately).
+	mux.Handle("/api/v1/agents", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tenantID, _ := tenancy.FromContext(r.Context())
+		if r.Method != http.MethodGet {
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, seedAgents, tenantID)
+	})))
+	mux.Handle("/api/v1/agents/", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tenantID, _ := tenancy.FromContext(r.Context())
+		agentID := strings.TrimPrefix(r.URL.Path, "/api/v1/agents/")
+		agentID = strings.SplitN(agentID, "/", 2)[0]
+		for _, a := range seedAgents {
+			if a["id"] == agentID {
+				httputil.WriteJSON(w, http.StatusOK, a, tenantID)
+				return
+			}
+		}
+		httputil.WriteError(w, http.StatusNotFound, "AGENT_NOT_FOUND", "agent not found")
+	})))
+	mux.Handle("/api/v1/tasks", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tenantID, _ := tenancy.FromContext(r.Context())
+		if r.Method != http.MethodGet {
+			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, seedTasks, tenantID)
+	})))
+
 	// Wrap with auth + tenant + logging + security middleware.
 	tenantMw := tenantMiddlewareWithExclusions(
 		middleware.TenantHTTP,
@@ -597,6 +628,82 @@ func tenantMiddlewareWithExclusions(mw func(http.Handler) http.Handler, excluded
 		})
 	}
 }
+
+// seedAgents and seedTasks are dev-mode stub data for the agents/tasks pages
+// when running the control-plane standalone (without the orchestrator).
+var seedAgents = []map[string]interface{}{
+	{
+		"id": "budget-reconciler", "tenant_id": "default", "version": "2.1.0",
+		"framework": "langchain", "capabilities": []string{"read:budget_db", "write:report_store"},
+		"status": "healthy", "svid_uri": "spiffe://argus.local/tenant/default/agent/budget-reconciler/v2.1.0",
+		"last_seen": time.Now().Add(-30 * time.Second).Format(time.RFC3339), "node_id": "node-eu-west-1a",
+		"tasks_completed": 1247, "tasks_failed": 3, "total_cost_usd": 45.82,
+		"total_tokens": 2850000, "avg_latency_ms": 185, "uptime_pct": 99.8,
+	},
+	{
+		"id": "code-reviewer", "tenant_id": "default", "version": "1.4.2",
+		"framework": "autogen", "capabilities": []string{"read:git_repo", "write:review_comments"},
+		"status": "healthy", "svid_uri": "spiffe://argus.local/tenant/default/agent/code-reviewer/v1.4.2",
+		"last_seen": time.Now().Add(-15 * time.Second).Format(time.RFC3339), "node_id": "node-eu-west-1b",
+		"tasks_completed": 892, "tasks_failed": 12, "total_cost_usd": 28.45,
+		"total_tokens": 1920000, "avg_latency_ms": 320, "uptime_pct": 98.7,
+	},
+	{
+		"id": "data-pipeline", "tenant_id": "default", "version": "3.0.1",
+		"framework": "custom", "capabilities": []string{"read:data_lake", "write:warehouse", "execute:etl"},
+		"status": "degraded", "svid_uri": "spiffe://argus.local/tenant/default/agent/data-pipeline/v3.0.1",
+		"last_seen": time.Now().Add(-5 * time.Minute).Format(time.RFC3339), "node_id": "node-eu-west-1a",
+		"tasks_completed": 5623, "tasks_failed": 47, "total_cost_usd": 312.90,
+		"total_tokens": 18500000, "avg_latency_ms": 890, "uptime_pct": 97.2,
+	},
+	{
+		"id": "customer-support", "tenant_id": "default", "version": "1.0.0",
+		"framework": "langchain", "capabilities": []string{"read:ticket_db", "write:responses", "read:knowledge_base"},
+		"status": "healthy", "svid_uri": "spiffe://argus.local/tenant/default/agent/customer-support/v1.0.0",
+		"last_seen": time.Now().Add(-10 * time.Second).Format(time.RFC3339), "node_id": "node-eu-west-1c",
+		"tasks_completed": 3215, "tasks_failed": 8, "total_cost_usd": 156.30,
+		"total_tokens": 9400000, "avg_latency_ms": 245, "uptime_pct": 99.5,
+	},
+	{
+		"id": "security-scanner", "tenant_id": "default", "version": "2.3.0",
+		"framework": "crewai", "capabilities": []string{"read:network_logs", "write:alerts", "execute:scan"},
+		"status": "healthy", "svid_uri": "spiffe://argus.local/tenant/default/agent/security-scanner/v2.3.0",
+		"last_seen": time.Now().Add(-45 * time.Second).Format(time.RFC3339), "node_id": "node-eu-west-1b",
+		"tasks_completed": 782, "tasks_failed": 2, "total_cost_usd": 67.15,
+		"total_tokens": 4200000, "avg_latency_ms": 540, "uptime_pct": 99.9,
+	},
+}
+
+var seedTasks = func() []map[string]interface{} {
+	now := time.Now()
+	tasks := []map[string]interface{}{
+		{"id": "task-001", "tenant_id": "default", "agent_id": "budget-reconciler", "status": "completed",
+			"input_hash": "a1b2c3d4e5", "started_at": now.Add(-2 * time.Hour).Format(time.RFC3339),
+			"completed_at": now.Add(-1 * time.Hour).Format(time.RFC3339), "cost_usd": 0.032, "tokens_used": 15200},
+		{"id": "task-002", "tenant_id": "default", "agent_id": "code-reviewer", "status": "running",
+			"input_hash": "f6g7h8i9j0", "started_at": now.Add(-10 * time.Minute).Format(time.RFC3339),
+			"completed_at": nil, "cost_usd": 0.018, "tokens_used": 8400},
+		{"id": "task-003", "tenant_id": "default", "agent_id": "data-pipeline", "status": "completed",
+			"input_hash": "k1l2m3n4o5", "started_at": now.Add(-3 * time.Hour).Format(time.RFC3339),
+			"completed_at": now.Add(-2*time.Hour - 30*time.Minute).Format(time.RFC3339), "cost_usd": 0.087, "tokens_used": 42300},
+		{"id": "task-004", "tenant_id": "default", "agent_id": "customer-support", "status": "completed",
+			"input_hash": "p6q7r8s9t0", "started_at": now.Add(-45 * time.Minute).Format(time.RFC3339),
+			"completed_at": now.Add(-30 * time.Minute).Format(time.RFC3339), "cost_usd": 0.024, "tokens_used": 11800},
+		{"id": "task-005", "tenant_id": "default", "agent_id": "security-scanner", "status": "pending",
+			"input_hash": "u1v2w3x4y5", "started_at": now.Format(time.RFC3339),
+			"completed_at": nil, "cost_usd": 0.0, "tokens_used": 0},
+		{"id": "task-006", "tenant_id": "default", "agent_id": "data-pipeline", "status": "failed",
+			"input_hash": "z6a7b8c9d0", "started_at": now.Add(-4 * time.Hour).Format(time.RFC3339),
+			"completed_at": now.Add(-3*time.Hour - 45*time.Minute).Format(time.RFC3339), "cost_usd": 0.054, "tokens_used": 26100},
+		{"id": "task-007", "tenant_id": "default", "agent_id": "budget-reconciler", "status": "completed",
+			"input_hash": "e1f2g3h4i5", "started_at": now.Add(-6 * time.Hour).Format(time.RFC3339),
+			"completed_at": now.Add(-5 * time.Hour).Format(time.RFC3339), "cost_usd": 0.041, "tokens_used": 19700},
+		{"id": "task-008", "tenant_id": "default", "agent_id": "customer-support", "status": "running",
+			"input_hash": "j6k7l8m9n0", "started_at": now.Add(-5 * time.Minute).Format(time.RFC3339),
+			"completed_at": nil, "cost_usd": 0.012, "tokens_used": 5600},
+	}
+	return tasks
+}()
 
 func seedControlPlaneDemo(
 	alertRouter *alerts.Router,
