@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/argus-platform/argus/pkg/httputil"
+	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -67,11 +68,17 @@ func (r *Repository) AddVersion(v *PromptVersion) {
 }
 
 type Handler struct {
-	repo *Repository
+	repo   *Repository
+	pgRepo *PGRepository
 }
 
 func NewHandler(repo *Repository) *Handler {
 	return &Handler{repo: repo}
+}
+
+// SetPG attaches a PostgreSQL repository for dual-write persistence.
+func (h *Handler) SetPG(pg *PGRepository) {
+	h.pgRepo = pg
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
@@ -106,6 +113,12 @@ func (h *Handler) CreatePrompt(w http.ResponseWriter, r *http.Request) {
 	h.repo.mu.Lock()
 	h.repo.prompts[prompt.ID] = &prompt
 	h.repo.mu.Unlock()
+
+	if h.pgRepo != nil {
+		if err := h.pgRepo.CreatePrompt(r.Context(), &prompt); err != nil {
+			logger.FromContext(r.Context()).Error("pg dual-write CreatePrompt failed: " + err.Error())
+		}
+	}
 
 	httputil.WriteJSON(w, http.StatusCreated, prompt, "")
 }
@@ -182,6 +195,12 @@ func (h *Handler) CreateVersion(w http.ResponseWriter, r *http.Request) {
 
 	h.repo.versions[promptID] = append(h.repo.versions[promptID], &version)
 
+	if h.pgRepo != nil {
+		if err := h.pgRepo.CreateVersion(r.Context(), &version); err != nil {
+			logger.FromContext(r.Context()).Error("pg dual-write CreateVersion failed: " + err.Error())
+		}
+	}
+
 	httputil.WriteJSON(w, http.StatusCreated, version, "")
 }
 
@@ -235,6 +254,12 @@ func (h *Handler) SetActiveVersion(w http.ResponseWriter, r *http.Request) {
 	prompt.ActiveVersion = body.Version
 	prompt.UpdatedAt = time.Now()
 	h.repo.mu.Unlock()
+
+	if h.pgRepo != nil {
+		if err := h.pgRepo.SetActiveVersion(r.Context(), prompt.TenantID, promptID, body.Version); err != nil {
+			logger.FromContext(r.Context()).Error("pg dual-write SetActiveVersion failed: " + err.Error())
+		}
+	}
 
 	httputil.WriteJSON(w, http.StatusOK, prompt, "")
 }

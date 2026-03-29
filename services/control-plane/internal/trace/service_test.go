@@ -423,7 +423,7 @@ func TestHandleTraces_GET(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			svc := NewService()
 			tc.seed(svc)
-			h := NewHandler(svc)
+			h := NewHandler(NewMemStore(svc))
 			mux := http.NewServeMux()
 			h.RegisterRoutes(mux)
 
@@ -460,7 +460,7 @@ func TestHandleTraces_GET(t *testing.T) {
 
 func TestHandleTraces_MissingTenant(t *testing.T) {
 	svc := NewService()
-	h := NewHandler(svc)
+	h := NewHandler(NewMemStore(svc))
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 
@@ -475,7 +475,7 @@ func TestHandleTraces_MissingTenant(t *testing.T) {
 
 func TestHandleTraces_MethodNotAllowed(t *testing.T) {
 	svc := NewService()
-	h := NewHandler(svc)
+	h := NewHandler(NewMemStore(svc))
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 
@@ -529,7 +529,7 @@ func TestHandleTraceByID_GET(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			svc := NewService()
 			tc.seed(svc)
-			h := NewHandler(svc)
+			h := NewHandler(NewMemStore(svc))
 			mux := http.NewServeMux()
 			h.RegisterRoutes(mux)
 
@@ -547,7 +547,7 @@ func TestHandleTraceByID_GET(t *testing.T) {
 func TestHandleTraceByID_FlameGraph(t *testing.T) {
 	svc := NewService()
 	seedTrace(svc, "tenant-a", "trace-1", "agent-1")
-	h := NewHandler(svc)
+	h := NewHandler(NewMemStore(svc))
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 
@@ -571,7 +571,7 @@ func TestHandleTraceByID_FlameGraph(t *testing.T) {
 
 func TestHandleTraceByID_FlameGraph_NotFound(t *testing.T) {
 	svc := NewService()
-	h := NewHandler(svc)
+	h := NewHandler(NewMemStore(svc))
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 
@@ -586,7 +586,7 @@ func TestHandleTraceByID_FlameGraph_NotFound(t *testing.T) {
 
 func TestHandleTraceByID_MissingTenant(t *testing.T) {
 	svc := NewService()
-	h := NewHandler(svc)
+	h := NewHandler(NewMemStore(svc))
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 
@@ -602,7 +602,7 @@ func TestHandleTraceByID_MissingTenant(t *testing.T) {
 func TestHandleTraceByID_ContentType(t *testing.T) {
 	svc := NewService()
 	seedTrace(svc, "tenant-a", "trace-1", "agent-1")
-	h := NewHandler(svc)
+	h := NewHandler(NewMemStore(svc))
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 
@@ -619,7 +619,7 @@ func TestHandleTraceByID_ContentType(t *testing.T) {
 func TestHandleTraceByID_MetaTenantID(t *testing.T) {
 	svc := NewService()
 	seedTrace(svc, "tenant-meta", "trace-1", "agent-1")
-	h := NewHandler(svc)
+	h := NewHandler(NewMemStore(svc))
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 

@@ -11,12 +11,12 @@ import (
 
 // Handler provides REST handlers for SLO management.
 type Handler struct {
-	repo       *Repository
+	repo       Store
 	calculator *Calculator
 }
 
 // NewHandler creates a new SLO handler.
-func NewHandler(repo *Repository, calculator *Calculator) *Handler {
+func NewHandler(repo Store, calculator *Calculator) *Handler {
 	return &Handler{repo: repo, calculator: calculator}
 }
 
@@ -37,7 +37,11 @@ func (h *Handler) handleSLOs(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		agentID := r.URL.Query().Get("agent_id")
-		slos := h.repo.ListSLOs(tenantID, agentID)
+		slos, err := h.repo.ListSLOs(r.Context(), tenantID, agentID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list SLOs")
+			return
+		}
 		httputil.WriteJSON(w, http.StatusOK, slos, tenantID)
 
 	case http.MethodPost:
@@ -57,7 +61,11 @@ func (h *Handler) handleSLOs(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "name, type, and target (> 0) are required")
 			return
 		}
-		slo := h.repo.CreateSLO(tenantID, req.Name, req.Description, req.AgentID, req.Type, req.Target, req.Window)
+		slo, err := h.repo.CreateSLO(r.Context(), tenantID, req.Name, req.Description, req.AgentID, req.Type, req.Target, req.Window)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create SLO")
+			return
+		}
 		httputil.WriteJSON(w, http.StatusCreated, slo, tenantID)
 
 	default:
@@ -78,7 +86,11 @@ func (h *Handler) handleAllStatuses(w http.ResponseWriter, r *http.Request) {
 	}
 
 	agentID := r.URL.Query().Get("agent_id")
-	statuses := h.calculator.CalculateAllStatuses(tenantID, agentID)
+	statuses, err := h.calculator.CalculateAllStatuses(r.Context(), tenantID, agentID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to calculate SLO statuses")
+		return
+	}
 	httputil.WriteJSON(w, http.StatusOK, statuses, tenantID)
 }
 
@@ -109,7 +121,11 @@ func (h *Handler) handleSLOByID(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
-		status := h.calculator.CalculateStatus(tenantID, sloID)
+		status, err := h.calculator.CalculateStatus(r.Context(), tenantID, sloID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to calculate SLO status")
+			return
+		}
 		if status == nil {
 			httputil.WriteError(w, http.StatusNotFound, "SLO_NOT_FOUND", "SLO not found")
 			return
@@ -124,19 +140,31 @@ func (h *Handler) handleSLOByID(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 			return
 		}
-		sloObj := h.repo.GetSLO(tenantID, sloID)
+		sloObj, err := h.repo.GetSLO(r.Context(), tenantID, sloID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get SLO")
+			return
+		}
 		if sloObj == nil {
 			httputil.WriteError(w, http.StatusNotFound, "SLO_NOT_FOUND", "SLO not found")
 			return
 		}
-		budget := h.calculator.CalculateErrorBudget(tenantID, sloID)
+		budget, err := h.calculator.CalculateErrorBudget(r.Context(), tenantID, sloID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to calculate error budget")
+			return
+		}
 		httputil.WriteJSON(w, http.StatusOK, budget, tenantID)
 		return
 	}
 
 	switch r.Method {
 	case http.MethodGet:
-		slo := h.repo.GetSLO(tenantID, sloID)
+		slo, err := h.repo.GetSLO(r.Context(), tenantID, sloID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get SLO")
+			return
+		}
 		if slo == nil {
 			httputil.WriteError(w, http.StatusNotFound, "SLO_NOT_FOUND", "SLO not found")
 			return
@@ -154,7 +182,7 @@ func (h *Handler) handleSLOByID(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
-		updated, err := h.repo.UpdateSLO(tenantID, sloID, req.Name, req.Description, req.Target, req.Enabled)
+		updated, err := h.repo.UpdateSLO(r.Context(), tenantID, sloID, req.Name, req.Description, req.Target, req.Enabled)
 		if err != nil {
 			httputil.WriteError(w, http.StatusNotFound, "SLO_NOT_FOUND", err.Error())
 			return
@@ -162,7 +190,7 @@ func (h *Handler) handleSLOByID(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteJSON(w, http.StatusOK, updated, tenantID)
 
 	case http.MethodDelete:
-		if err := h.repo.DeleteSLO(tenantID, sloID); err != nil {
+		if err := h.repo.DeleteSLO(r.Context(), tenantID, sloID); err != nil {
 			httputil.WriteError(w, http.StatusNotFound, "SLO_NOT_FOUND", err.Error())
 			return
 		}

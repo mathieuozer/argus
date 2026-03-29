@@ -6,6 +6,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -16,7 +17,7 @@ type Proxy struct {
 	logger       *zap.Logger
 	upstreamAddr string
 	reverseProxy *httputil.ReverseProxy
-	requestCount int64
+	requestCount atomic.Int64
 }
 
 // New creates a new transparent proxy.
@@ -82,7 +83,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 	p.reverseProxy.ServeHTTP(wrapped, r)
 
-	p.requestCount++
+	p.requestCount.Add(1)
 	p.logger.Debug("proxy response",
 		zap.Int("status", wrapped.statusCode),
 		zap.Int64("bytes", wrapped.bytesWritten),
@@ -94,7 +95,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) Stats() map[string]interface{} {
 	return map[string]interface{}{
 		"upstream_addr": p.upstreamAddr,
-		"request_count": p.requestCount,
+		"request_count": p.requestCount.Load(),
 	}
 }
 

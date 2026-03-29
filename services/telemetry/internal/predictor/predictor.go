@@ -1,7 +1,12 @@
 package predictor
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"math"
+	"net/http"
+	"os"
 	"time"
 )
 
@@ -26,14 +31,24 @@ type QuarantineCallback func(agentID, tenantID string)
 type Client struct {
 	endpoint           string
 	useLocal           bool // when true, use local heuristic model instead of ONNX
+	httpClient         *http.Client
 	quarantineCallback QuarantineCallback
 }
 
 // NewClient creates a new predictor client.
+// If ARGUS_PREDICTOR_URL is set, uses the remote ONNX predictor service.
+// Otherwise defaults to local heuristics (suitable for dev/air-gap).
 func NewClient(endpoint string) *Client {
+	if envURL := os.Getenv("ARGUS_PREDICTOR_URL"); envURL != "" {
+		endpoint = envURL
+	}
+	useLocal := endpoint == ""
 	return &Client{
 		endpoint: endpoint,
-		useLocal: true, // default to local heuristics for dev/air-gap
+		useLocal: useLocal,
+		httpClient: &http.Client{
+			Timeout: 5 * time.Second,
+		},
 	}
 }
 
@@ -57,12 +72,40 @@ type Prediction struct {
 }
 
 // Predict calls the predictor with the given features.
+// When configured with a remote endpoint, calls the Python ONNX predictor service.
+// Falls back to local heuristics on remote failure.
 func (c *Client) Predict(features *Features) (*Prediction, error) {
 	if c.useLocal {
 		return c.predictLocal(features)
 	}
-	// In production with ONNX endpoint, would make HTTP call here
-	return c.predictLocal(features)
+	return c.predictRemote(features)
+}
+
+// predictRemote calls the Python ONNX predictor service via HTTP.
+func (c *Client) predictRemote(features *Features) (*Prediction, error) {
+	payload, err := json.Marshal(features)
+	if err != nil {
+		return nil, fmt.Errorf("marshal features: %w", err)
+	}
+
+	resp, err := c.httpClient.Post(c.endpoint+"/predict", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		// Fall back to local heuristics if remote is unavailable
+		return c.predictLocal(features)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		// Fall back to local on non-200 responses
+		return c.predictLocal(features)
+	}
+
+	var prediction Prediction
+	if err := json.NewDecoder(resp.Body).Decode(&prediction); err != nil {
+		return nil, fmt.Errorf("decode prediction response: %w", err)
+	}
+
+	return &prediction, nil
 }
 
 // predictLocal uses heuristic rules to predict failures.

@@ -38,7 +38,7 @@ func decodeResponseBody(t *testing.T, w *httptest.ResponseRecorder) map[string]i
 
 func newTestHandler() (*Handler, *Writer) {
 	writer := NewWriter()
-	h := NewHandler(writer)
+	h := NewHandler(NewMemStore(writer))
 	return h, writer
 }
 

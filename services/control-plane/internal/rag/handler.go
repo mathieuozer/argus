@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/argus-platform/argus/pkg/httputil"
+	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -69,11 +70,17 @@ func (r *Repository) AddSource(src *Source) {
 }
 
 type Handler struct {
-	repo *Repository
+	repo   *Repository
+	pgRepo *PGRepository
 }
 
 func NewHandler(repo *Repository) *Handler {
 	return &Handler{repo: repo}
+}
+
+// SetPG attaches a PostgreSQL repository for dual-write persistence.
+func (h *Handler) SetPG(pg *PGRepository) {
+	h.pgRepo = pg
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
@@ -118,6 +125,13 @@ func (h *Handler) CreateRetrieval(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:    time.Now(),
 	}
 	h.repo.AddRetrieval(ret)
+
+	if h.pgRepo != nil {
+		if err := h.pgRepo.SaveRetrieval(r.Context(), ret); err != nil {
+			logger.FromContext(r.Context()).Error("pg dual-write SaveRetrieval failed: " + err.Error())
+		}
+	}
+
 	httputil.WriteJSON(w, http.StatusCreated, ret, "")
 }
 
@@ -150,6 +164,13 @@ func (h *Handler) CreateSource(w http.ResponseWriter, r *http.Request) {
 		UsageCount:   req.UsageCount,
 	}
 	h.repo.AddSource(src)
+
+	if h.pgRepo != nil {
+		if err := h.pgRepo.SaveSource(r.Context(), src); err != nil {
+			logger.FromContext(r.Context()).Error("pg dual-write SaveSource failed: " + err.Error())
+		}
+	}
+
 	httputil.WriteJSON(w, http.StatusCreated, src, "")
 }
 

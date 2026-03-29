@@ -10,12 +10,12 @@ import (
 
 // Handler provides REST handlers for querying audit logs.
 type Handler struct {
-	writer *Writer
+	store Store
 }
 
-// NewHandler creates a new audit handler.
-func NewHandler(writer *Writer) *Handler {
-	return &Handler{writer: writer}
+// NewHandler creates a new audit handler backed by a Store.
+func NewHandler(store Store) *Handler {
+	return &Handler{store: store}
 }
 
 // RegisterRoutes registers audit API routes on the mux.
@@ -37,7 +37,11 @@ func (h *Handler) handleLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entries := h.writer.List(tenantID)
+	entries, err := h.store.List(r.Context(), tenantID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list audit logs")
+		return
+	}
 
 	// Apply optional pagination
 	limit := 100
@@ -80,25 +84,14 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Filter parameters
 	actor := r.URL.Query().Get("actor")
 	action := r.URL.Query().Get("action")
 	resource := r.URL.Query().Get("resource")
 
-	allEntries := h.writer.List(tenantID)
-	var filtered []*Entry
-
-	for _, e := range allEntries {
-		if actor != "" && e.Actor != actor {
-			continue
-		}
-		if action != "" && e.Action != action {
-			continue
-		}
-		if resource != "" && e.Resource != resource {
-			continue
-		}
-		filtered = append(filtered, e)
+	filtered, err := h.store.Search(r.Context(), tenantID, actor, action, resource)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to search audit logs")
+		return
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, filtered, tenantID)
@@ -116,9 +109,12 @@ func (h *Handler) handleStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	allEntries := h.writer.List(tenantID)
+	allEntries, err := h.store.List(r.Context(), tenantID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get audit stats")
+		return
+	}
 
-	// Aggregate statistics
 	byAction := make(map[string]int)
 	byActor := make(map[string]int)
 	for _, e := range allEntries {

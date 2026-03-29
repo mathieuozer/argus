@@ -3,9 +3,9 @@ package messaging
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/nats-io/nats.go"
+	"go.uber.org/zap"
 )
 
 // MessageHandler processes a received message.
@@ -13,13 +13,14 @@ type MessageHandler func(msg *nats.Msg) error
 
 // Subscriber subscribes to tenant-scoped NATS subjects.
 type Subscriber struct {
-	conn *Conn
-	subs []*nats.Subscription
+	conn   *Conn
+	logger *zap.Logger
+	subs   []*nats.Subscription
 }
 
 // NewSubscriber creates a new Subscriber.
-func NewSubscriber(conn *Conn) *Subscriber {
-	return &Subscriber{conn: conn}
+func NewSubscriber(conn *Conn, logger *zap.Logger) *Subscriber {
+	return &Subscriber{conn: conn, logger: logger}
 }
 
 // SubscribeAll subscribes to all tenant telemetry with a durable consumer.
@@ -28,7 +29,7 @@ func (s *Subscriber) SubscribeAll(ctx context.Context, consumerName string, hand
 		"tenant.*.telemetry.>",
 		func(msg *nats.Msg) {
 			if err := handler(msg); err != nil {
-				log.Printf("message handler error: %v", err)
+				s.logger.Error("message handler error", zap.Error(err))
 				_ = msg.Nak()
 				return
 			}
@@ -61,7 +62,7 @@ func (s *Subscriber) SubscribeTenant(ctx context.Context, tenantID string, consu
 		subject,
 		func(msg *nats.Msg) {
 			if err := handler(msg); err != nil {
-				log.Printf("message handler error for tenant %s: %v", tenantID, err)
+				s.logger.Error("message handler error", zap.String("tenant_id", tenantID), zap.Error(err))
 				_ = msg.Nak()
 				return
 			}

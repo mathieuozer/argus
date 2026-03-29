@@ -18,6 +18,7 @@ import (
 	"github.com/argus-platform/argus/pkg/health"
 	"github.com/argus-platform/argus/pkg/httputil"
 	"github.com/argus-platform/argus/pkg/logger"
+	"github.com/argus-platform/argus/pkg/messaging"
 	"github.com/argus-platform/argus/pkg/metrics"
 	"github.com/argus-platform/argus/pkg/middleware"
 	"github.com/argus-platform/argus/pkg/tenancy"
@@ -32,6 +33,7 @@ import (
 	telrepo "github.com/argus-platform/argus/services/telemetry/internal/repository"
 	"github.com/argus-platform/argus/services/telemetry/internal/residency"
 	"github.com/argus-platform/argus/services/telemetry/internal/storage"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -101,6 +103,64 @@ func main() {
 		resp.Body.Close()
 	})
 
+	// Connect to NATS JetStream for span ingestion from sidecars
+	var natsConn *messaging.Conn
+	if natsURL := os.Getenv("ARGUS_NATS_URL"); natsURL != "" {
+		conn, err := messaging.Connect(natsURL)
+		if err != nil {
+			log.Warn("failed to connect to NATS, spans will only be accepted via HTTP/gRPC", zap.Error(err))
+		} else {
+			natsConn = conn
+			defer conn.Close()
+
+			// Ensure telemetry stream exists
+			if _, err := conn.EnsureStream(messaging.DefaultTelemetryStream()); err != nil {
+				log.Error("failed to ensure NATS telemetry stream", zap.Error(err))
+			}
+
+			// Subscribe to all tenant telemetry spans
+			sub := messaging.NewSubscriber(conn, log)
+			natsCtx, natsCancel := context.WithCancel(context.Background())
+			defer natsCancel()
+
+			err = sub.SubscribeAll(natsCtx, "telemetry-collector", func(msg *nats.Msg) error {
+				var span collector.Span
+				if err := json.Unmarshal(msg.Data, &span); err != nil {
+					log.Error("failed to unmarshal NATS span", zap.Error(err))
+					return err
+				}
+
+				// Classify, scrub PII, and store
+				classified := classifier.ClassifyAttributes(span.Attributes)
+				for tier, attrs := range classified {
+					if tier >= classifier.TierSensitive {
+						classified[tier] = scrubber.ScrubMap(attrs)
+					}
+					if err := storageBackend.Store(span.TenantID, tier, attrs); err != nil {
+						log.Error("failed to store telemetry from NATS", zap.String("tenant", span.TenantID), zap.Error(err))
+					}
+				}
+
+				spanCollector.Ingest([]*collector.Span{&span})
+
+				// Persist to DB if available
+				if spanRepo != nil {
+					ctx := context.Background()
+					if err := spanRepo.Store(ctx, span.TenantID, []*collector.Span{&span}); err != nil {
+						log.Error("failed to persist NATS span to DB", zap.Error(err))
+					}
+				}
+
+				return nil
+			})
+			if err != nil {
+				log.Error("failed to subscribe to NATS telemetry", zap.Error(err))
+			} else {
+				log.Info("subscribed to NATS telemetry stream for span ingestion")
+			}
+		}
+	}
+
 	// gRPC server
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(middleware.TenantUnaryInterceptor()),
@@ -131,6 +191,14 @@ func main() {
 	if dbPool != nil {
 		healthChecker.AddCheck("postgres", func(ctx context.Context) error {
 			return dbPool.Ping(ctx)
+		})
+	}
+	if natsConn != nil {
+		healthChecker.AddCheck("nats", func(ctx context.Context) error {
+			if !natsConn.NatsConn().IsConnected() {
+				return fmt.Errorf("NATS disconnected")
+			}
+			return nil
 		})
 	}
 

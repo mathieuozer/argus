@@ -93,8 +93,8 @@ func TestStats(t *testing.T) {
 	p := &Proxy{
 		logger:       zap.NewNop(),
 		upstreamAddr: "http://localhost:9000",
-		requestCount: 42,
 	}
+	p.requestCount.Store(42)
 
 	stats := p.Stats()
 	if stats["upstream_addr"] != "http://localhost:9000" {
@@ -201,8 +201,8 @@ func TestServeHTTP_FullRoundTrip(t *testing.T) {
 		t.Errorf("expected path=/api/v1/tasks, got %s", data["path"])
 	}
 
-	if p.requestCount != 1 {
-		t.Errorf("expected requestCount 1, got %d", p.requestCount)
+	if p.requestCount.Load() != 1 {
+		t.Errorf("expected requestCount 1, got %d", p.requestCount.Load())
 	}
 }
 

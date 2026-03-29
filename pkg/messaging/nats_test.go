@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"go.uber.org/zap"
 )
 
 func TestDefaultTelemetryStream(t *testing.T) {
@@ -41,7 +42,7 @@ func TestNewPublisher(t *testing.T) {
 
 func TestNewSubscriber(t *testing.T) {
 	conn := &Conn{}
-	sub := NewSubscriber(conn)
+	sub := NewSubscriber(conn, zap.NewNop())
 	if sub == nil {
 		t.Error("expected non-nil subscriber")
 	}

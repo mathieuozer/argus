@@ -37,10 +37,14 @@ func responseBody(t *testing.T, w *httptest.ResponseRecorder) map[string]interfa
 	return body
 }
 
+// newTestHandler constructs a Handler backed by a memStore. It returns both the
+// Handler and the underlying *Repository so test cases can call the original
+// context-free seeding helpers (CreateSLO, RecordMeasurement, etc.) directly.
 func newTestHandler() (*Handler, *Repository) {
 	repo := NewRepository()
-	calc := NewCalculator(repo)
-	h := NewHandler(repo, calc)
+	store := NewMemStore(repo)
+	calc := NewCalculator(store)
+	h := NewHandler(store, calc)
 	return h, repo
 }
 
@@ -541,13 +545,16 @@ func TestHandleAllStatuses_MissingTenant(t *testing.T) {
 
 func TestCalculator_ErrorBudget(t *testing.T) {
 	repo := NewRepository()
-	calc := NewCalculator(repo)
+	calc := NewCalculator(NewMemStore(repo))
 
 	repo.CreateSLO("tenant-a", "Availability", "desc", "", SLOTypeAvailability, 99.9, "30d")
 	// 10000 total events, 9990 good = 99.9% exactly at target
 	repo.RecordMeasurement("tenant-a", "slo-1", "agent-1", 99.9, 9990, 10000)
 
-	status := calc.CalculateStatus("tenant-a", "slo-1")
+	status, err := calc.CalculateStatus(t.Context(), "tenant-a", "slo-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if status == nil {
 		t.Fatal("expected status, got nil")
 	}
@@ -602,12 +609,15 @@ func TestCalculator_ComplianceStatuses(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := NewRepository()
-			calc := NewCalculator(repo)
+			calc := NewCalculator(NewMemStore(repo))
 
 			repo.CreateSLO("tenant-a", "test", "desc", "", SLOTypeAvailability, tc.target, "30d")
 			repo.RecordMeasurement("tenant-a", "slo-1", "agent-1", 0, tc.good, tc.total)
 
-			status := calc.CalculateStatus("tenant-a", "slo-1")
+			status, err := calc.CalculateStatus(t.Context(), "tenant-a", "slo-1")
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 			if status == nil {
 				t.Fatal("expected status, got nil")
 			}
@@ -620,9 +630,12 @@ func TestCalculator_ComplianceStatuses(t *testing.T) {
 
 func TestCalculator_NonexistentSLO(t *testing.T) {
 	repo := NewRepository()
-	calc := NewCalculator(repo)
+	calc := NewCalculator(NewMemStore(repo))
 
-	status := calc.CalculateStatus("tenant-a", "nonexistent")
+	status, err := calc.CalculateStatus(t.Context(), "tenant-a", "nonexistent")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if status != nil {
 		t.Errorf("expected nil status for nonexistent SLO")
 	}

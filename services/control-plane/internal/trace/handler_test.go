@@ -15,7 +15,7 @@ func newHandlerWithMux(seed func(*Service)) (*Handler, *http.ServeMux) {
 	if seed != nil {
 		seed(svc)
 	}
-	h := NewHandler(svc)
+	h := NewHandler(NewMemStore(svc))
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 	return h, mux

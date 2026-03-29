@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/argus-platform/argus/pkg/httputil"
+	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -47,11 +48,17 @@ func (r *Repository) AddFeedback(fb *Feedback) {
 }
 
 type Handler struct {
-	repo *Repository
+	repo   *Repository
+	pgRepo *PGRepository
 }
 
 func NewHandler(repo *Repository) *Handler {
 	return &Handler{repo: repo}
+}
+
+// SetPG attaches a PostgreSQL repository for dual-write persistence.
+func (h *Handler) SetPG(pg *PGRepository) {
+	h.pgRepo = pg
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
@@ -80,6 +87,12 @@ func (h *Handler) SubmitFeedback(w http.ResponseWriter, r *http.Request) {
 	h.repo.mu.Lock()
 	h.repo.feedback = append(h.repo.feedback, &fb)
 	h.repo.mu.Unlock()
+
+	if h.pgRepo != nil {
+		if err := h.pgRepo.Submit(r.Context(), &fb); err != nil {
+			logger.FromContext(r.Context()).Error("pg dual-write Submit feedback failed: " + err.Error())
+		}
+	}
 
 	httputil.WriteJSON(w, http.StatusCreated, fb, "")
 }

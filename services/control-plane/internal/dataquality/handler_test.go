@@ -37,8 +37,8 @@ func responseBody(t *testing.T, w *httptest.ResponseRecorder) map[string]interfa
 }
 
 func newTestHandler() (*Handler, *Repository) {
-	repo := NewRepository()
-	h := NewHandler(repo)
+	store, repo := NewMemStore()
+	h := NewHandler(store)
 	return h, repo
 }
 

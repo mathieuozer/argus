@@ -1,6 +1,7 @@
 package slo
 
 import (
+	"context"
 	"time"
 )
 
@@ -31,34 +32,44 @@ type SLOStatus struct {
 
 // Calculator computes SLO compliance and error budgets.
 type Calculator struct {
-	repo *Repository
+	store Store
 }
 
 // NewCalculator creates a new SLO calculator.
-func NewCalculator(repo *Repository) *Calculator {
-	return &Calculator{repo: repo}
+func NewCalculator(store Store) *Calculator {
+	return &Calculator{store: store}
 }
 
 // CalculateStatus computes the current status for a single SLO.
-func (c *Calculator) CalculateStatus(tenantID, sloID string) *SLOStatus {
-	slo := c.repo.GetSLO(tenantID, sloID)
+// Returns (nil, nil) when the SLO does not exist.
+func (c *Calculator) CalculateStatus(ctx context.Context, tenantID, sloID string) (*SLOStatus, error) {
+	slo, err := c.store.GetSLO(ctx, tenantID, sloID)
+	if err != nil {
+		return nil, err
+	}
 	if slo == nil {
-		return nil
+		return nil, nil
 	}
 
 	windowEnd := time.Now()
 	windowStart := windowEnd.Add(-parseWindow(slo.Window))
 
-	measurements := c.repo.GetMeasurements(tenantID, sloID, windowStart)
+	measurements, err := c.store.GetMeasurements(ctx, tenantID, sloID, windowStart)
+	if err != nil {
+		return nil, err
+	}
 
-	return c.computeStatus(slo, measurements, windowStart, windowEnd)
+	return c.computeStatus(slo, measurements, windowStart, windowEnd), nil
 }
 
 // CalculateAllStatuses computes status for all SLOs belonging to a tenant.
-func (c *Calculator) CalculateAllStatuses(tenantID, agentID string) []*SLOStatus {
-	slos := c.repo.ListSLOs(tenantID, agentID)
+func (c *Calculator) CalculateAllStatuses(ctx context.Context, tenantID, agentID string) ([]*SLOStatus, error) {
+	slos, err := c.store.ListSLOs(ctx, tenantID, agentID)
+	if err != nil {
+		return nil, err
+	}
 	if len(slos) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	windowEnd := time.Now()
@@ -69,12 +80,15 @@ func (c *Calculator) CalculateAllStatuses(tenantID, agentID string) []*SLOStatus
 			continue
 		}
 		windowStart := windowEnd.Add(-parseWindow(slo.Window))
-		measurements := c.repo.GetMeasurements(tenantID, slo.ID, windowStart)
+		measurements, err := c.store.GetMeasurements(ctx, tenantID, slo.ID, windowStart)
+		if err != nil {
+			return nil, err
+		}
 		status := c.computeStatus(slo, measurements, windowStart, windowEnd)
 		statuses = append(statuses, status)
 	}
 
-	return statuses
+	return statuses, nil
 }
 
 func (c *Calculator) computeStatus(slo *SLO, measurements []*Measurement, windowStart, windowEnd time.Time) *SLOStatus {
@@ -132,16 +146,22 @@ type ErrorBudgetPoint struct {
 }
 
 // CalculateErrorBudget returns the error budget time series for an SLO.
-func (c *Calculator) CalculateErrorBudget(tenantID, sloID string) []ErrorBudgetPoint {
-	slo := c.repo.GetSLO(tenantID, sloID)
+func (c *Calculator) CalculateErrorBudget(ctx context.Context, tenantID, sloID string) ([]ErrorBudgetPoint, error) {
+	slo, err := c.store.GetSLO(ctx, tenantID, sloID)
+	if err != nil {
+		return nil, err
+	}
 	if slo == nil {
-		return []ErrorBudgetPoint{}
+		return []ErrorBudgetPoint{}, nil
 	}
 
 	windowDuration := parseWindow(slo.Window)
 	windowEnd := time.Now()
 	windowStart := windowEnd.Add(-windowDuration)
-	measurements := c.repo.GetMeasurements(tenantID, sloID, windowStart)
+	measurements, err := c.store.GetMeasurements(ctx, tenantID, sloID, windowStart)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(measurements) == 0 {
 		// Return a flat budget line at 100% remaining
@@ -154,7 +174,7 @@ func (c *Calculator) CalculateErrorBudget(tenantID, sloID string) []ErrorBudgetP
 				Remaining: 100.0,
 			})
 		}
-		return points
+		return points, nil
 	}
 
 	// Build cumulative error budget from measurements
@@ -177,7 +197,7 @@ func (c *Calculator) CalculateErrorBudget(tenantID, sloID string) []ErrorBudgetP
 		})
 	}
 
-	return points
+	return points, nil
 }
 
 // parseWindow converts a window string like "7d", "30d", "90d" to a duration.

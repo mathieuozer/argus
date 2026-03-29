@@ -92,21 +92,10 @@ func main() {
 		log.Info("no ARGUS_DB_DSN set, using in-memory stores")
 	}
 
-	// Suppress unused variable warnings for PG repositories.
-	// These are available for dual-write persistence in request handlers
-	// and for future migration to DB-primary reads.
+	// Partially-implemented PG repos — these don't yet satisfy the full Store interface
+	// and will be wired once complete.
 	_ = catalogPG
-	_ = costPG
 	_ = dqPG
-	_ = sloPG
-	_ = tracePG
-	_ = auditPG
-	_ = evalPG
-	_ = feedbackPG
-	_ = guardrailsPG
-	_ = promptsPG
-	_ = ragPG
-	_ = compliancePG
 
 	// Initialize components
 	auditLog := audit.NewWriter()
@@ -115,44 +104,78 @@ func main() {
 	jwtAuth := auth.New(os.Getenv("ARGUS_JWT_SECRET"))
 	dashHandler := dashboard.New(alertRouter, auditLog)
 
-	// Initialize observability module handlers
+	// Initialize observability module handlers with PG persistence when available
 	traceSvc := trace.NewService()
-	traceHandler := trace.NewHandler(traceSvc)
+	var traceStore trace.Store = trace.NewMemStore(traceSvc)
+	if tracePG != nil {
+		traceStore = tracePG
+	}
+	traceHandler := trace.NewHandler(traceStore)
 
-	dqRepo := dataquality.NewRepository()
-	dqHandler := dataquality.NewHandler(dqRepo)
+	dqStore, dqRepo := dataquality.NewMemStore()
+	dqHandler := dataquality.NewHandler(dqStore)
 
 	catalogRepo := catalog.NewRepository()
-	catalogHandler := catalog.NewHandler(catalogRepo)
+	catalogHandler := catalog.NewHandler(catalog.NewMemStore(catalogRepo))
 
 	costRepo := costgov.NewRepository()
 	costDetector := costgov.NewAnomalyDetector()
 	costHandler := costgov.NewHandler(costRepo, costDetector)
 
 	sloRepo := slo.NewRepository()
-	sloCalc := slo.NewCalculator(sloRepo)
-	sloHandler := slo.NewHandler(sloRepo, sloCalc)
+	var sloStore slo.Store = slo.NewMemStore(sloRepo)
+	if sloPG != nil {
+		sloStore = sloPG
+	}
+	sloCalc := slo.NewCalculator(sloStore)
+	sloHandler := slo.NewHandler(sloStore, sloCalc)
 
-	auditHandler := audit.NewHandler(auditLog)
+	var auditStore audit.Store = audit.NewMemStore(auditLog)
+	if auditPG != nil {
+		auditStore = auditPG
+	}
+	auditHandler := audit.NewHandler(auditStore)
 
-	// Initialize feature module handlers
+	// Initialize feature module handlers with PG dual-write when available
 	evalRepo := eval.NewRepository()
 	evalHandler := eval.NewHandler(evalRepo)
+	if evalPG != nil {
+		evalHandler.SetPG(evalPG)
+	}
 
 	feedbackRepo := feedback.NewRepository()
 	feedbackHandler := feedback.NewHandler(feedbackRepo)
+	if feedbackPG != nil {
+		feedbackHandler.SetPG(feedbackPG)
+	}
 
 	guardrailsRepo := guardrails.NewRepository()
 	guardrailsHandler := guardrails.NewHandler(guardrailsRepo)
+	if guardrailsPG != nil {
+		guardrailsHandler.SetPG(guardrailsPG)
+	}
 
 	promptsRepo := prompts.NewRepository()
 	promptsHandler := prompts.NewHandler(promptsRepo)
+	if promptsPG != nil {
+		promptsHandler.SetPG(promptsPG)
+	}
 
 	ragRepo := rag.NewRepository()
 	ragHandler := rag.NewHandler(ragRepo)
+	if ragPG != nil {
+		ragHandler.SetPG(ragPG)
+	}
 
 	complianceRepo := compliance.NewReportRepository()
 	complianceHandler := compliance.NewReportHandler(complianceRepo)
+	if compliancePG != nil {
+		complianceHandler.SetPG(compliancePG)
+	}
+
+	if costPG != nil {
+		costHandler.SetPG(costPG)
+	}
 
 	govRepo := governance.NewRepository()
 	govHandler := governance.NewHandler(govRepo)
@@ -459,7 +482,7 @@ func main() {
 		tenantID, _ := tenancy.FromContext(r.Context())
 
 		bd := costRepo.GetBreakdown(tenantID, time.Time{})
-		sloStatuses := sloCalc.CalculateAllStatuses(tenantID, "")
+		sloStatuses, _ := sloCalc.CalculateAllStatuses(r.Context(), tenantID, "")
 
 		httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 			"total_agents": len(bd.ByAgent),

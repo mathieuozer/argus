@@ -1,5 +1,7 @@
-# Go
+# Go compiled binaries (exclude dirs named main via negation)
 /main
+services/*/main
+sidecar/main
 bin/
 *.exe
 *.exe~

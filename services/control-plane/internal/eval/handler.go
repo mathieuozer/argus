@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/argus-platform/argus/pkg/httputil"
+	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -91,12 +92,18 @@ func (r *Repository) AddRun(run *EvalRun) {
 
 // Handler handles evaluation HTTP requests.
 type Handler struct {
-	repo *Repository
+	repo   *Repository
+	pgRepo *PGRepository
 }
 
 // NewHandler creates a new eval handler.
 func NewHandler(repo *Repository) *Handler {
 	return &Handler{repo: repo}
+}
+
+// SetPG attaches a PostgreSQL repository for dual-write persistence.
+func (h *Handler) SetPG(pg *PGRepository) {
+	h.pgRepo = pg
 }
 
 // RegisterRoutes registers eval API routes.
@@ -130,6 +137,12 @@ func (h *Handler) CreateSuite(w http.ResponseWriter, r *http.Request) {
 	h.repo.mu.Lock()
 	h.repo.suites[suite.ID] = &suite
 	h.repo.mu.Unlock()
+
+	if h.pgRepo != nil {
+		if err := h.pgRepo.CreateSuite(r.Context(), &suite); err != nil {
+			logger.FromContext(r.Context()).Error("pg dual-write CreateSuite failed: " + err.Error())
+		}
+	}
 
 	httputil.WriteJSON(w, http.StatusCreated, suite, "")
 }
@@ -239,6 +252,12 @@ func (h *Handler) RunEval(w http.ResponseWriter, r *http.Request) {
 	h.repo.mu.Lock()
 	h.repo.runs[run.ID] = run
 	h.repo.mu.Unlock()
+
+	if h.pgRepo != nil {
+		if err := h.pgRepo.SaveRun(r.Context(), run); err != nil {
+			logger.FromContext(r.Context()).Error("pg dual-write SaveRun failed: " + err.Error())
+		}
+	}
 
 	httputil.WriteJSON(w, http.StatusOK, run, "")
 }

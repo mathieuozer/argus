@@ -11,11 +11,11 @@ import (
 
 // Handler provides REST handlers for data quality management.
 type Handler struct {
-	repo *Repository
+	repo Store
 }
 
 // NewHandler creates a new data quality handler.
-func NewHandler(repo *Repository) *Handler {
+func NewHandler(repo Store) *Handler {
 	return &Handler{repo: repo}
 }
 
@@ -48,7 +48,12 @@ func (h *Handler) handleRules(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		agentID := r.URL.Query().Get("agent_id")
-		httputil.WriteJSON(w, http.StatusOK, h.repo.ListRules(tenantID, agentID), tenantID)
+		rules, err := h.repo.ListRules(r.Context(), tenantID, agentID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, rules, tenantID)
 	case http.MethodPost:
 		var req struct {
 			Name        string   `json:"name"`
@@ -74,7 +79,11 @@ func (h *Handler) handleRules(w http.ResponseWriter, r *http.Request) {
 		if req.Severity == "" {
 			req.Severity = SeverityWarning
 		}
-		rule := h.repo.CreateRule(tenantID, req.Name, req.Description, req.Type, req.AgentID, req.Field, req.Operator, req.Threshold, req.Severity)
+		rule, err := h.repo.CreateRule(r.Context(), tenantID, req.Name, req.Description, req.Type, req.AgentID, req.Field, req.Operator, req.Threshold, req.Severity)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
 		httputil.WriteJSON(w, http.StatusCreated, rule, tenantID)
 	default:
 		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -102,7 +111,11 @@ func (h *Handler) handleRuleByID(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodGet:
-		rule := h.repo.GetRule(tenantID, ruleID)
+		rule, err := h.repo.GetRule(r.Context(), tenantID, ruleID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
 		if rule == nil {
 			httputil.WriteError(w, http.StatusNotFound, "RULE_NOT_FOUND", "rule not found")
 			return
@@ -118,14 +131,14 @@ func (h *Handler) handleRuleByID(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
-		updated, err := h.repo.UpdateRule(tenantID, ruleID, req.Name, req.Description, req.Enabled)
+		updated, err := h.repo.UpdateRule(r.Context(), tenantID, ruleID, req.Name, req.Description, req.Enabled)
 		if err != nil {
 			httputil.WriteError(w, http.StatusNotFound, "RULE_NOT_FOUND", err.Error())
 			return
 		}
 		httputil.WriteJSON(w, http.StatusOK, updated, tenantID)
 	case http.MethodDelete:
-		if err := h.repo.DeleteRule(tenantID, ruleID); err != nil {
+		if err := h.repo.DeleteRule(r.Context(), tenantID, ruleID); err != nil {
 			httputil.WriteError(w, http.StatusNotFound, "RULE_NOT_FOUND", err.Error())
 			return
 		}
@@ -145,7 +158,11 @@ func (h *Handler) handleScores(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		agentID := r.URL.Query().Get("agent_id")
 		if agentID != "" {
-			score := h.repo.GetLatestScore(tenantID, agentID)
+			score, err := h.repo.GetLatestScore(r.Context(), tenantID, agentID)
+			if err != nil {
+				httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+				return
+			}
 			if score == nil {
 				httputil.WriteError(w, http.StatusNotFound, "SCORE_NOT_FOUND", "no score found")
 				return
@@ -153,7 +170,12 @@ func (h *Handler) handleScores(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteJSON(w, http.StatusOK, score, tenantID)
 			return
 		}
-		httputil.WriteJSON(w, http.StatusOK, h.repo.ListScores(tenantID, ""), tenantID)
+		scores, err := h.repo.ListScores(r.Context(), tenantID, "")
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, scores, tenantID)
 	case http.MethodPost:
 		var req struct {
 			AgentID      string  `json:"agent_id"`
@@ -167,7 +189,10 @@ func (h *Handler) handleScores(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		overall := (req.Completeness + req.Consistency + req.Timeliness + req.Validity) / 4.0 * 100
-		h.repo.RecordScore(tenantID, req.AgentID, overall, req.Completeness*100, req.Consistency*100, req.Timeliness*100, req.Validity*100, 100, 0, 0)
+		if _, err := h.repo.RecordScore(r.Context(), tenantID, req.AgentID, overall, req.Completeness*100, req.Consistency*100, req.Timeliness*100, req.Validity*100, 100, 0, 0); err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
 		httputil.WriteJSON(w, http.StatusCreated, map[string]string{"status": "recorded"}, tenantID)
 	default:
 		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -186,7 +211,12 @@ func (h *Handler) handleViolations(w http.ResponseWriter, r *http.Request) {
 	}
 	agentID := r.URL.Query().Get("agent_id")
 	ruleID := r.URL.Query().Get("rule_id")
-	httputil.WriteJSON(w, http.StatusOK, h.repo.ListViolations(tenantID, agentID, ruleID), tenantID)
+	violations, err := h.repo.ListViolations(r.Context(), tenantID, agentID, ruleID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, violations, tenantID)
 }
 
 func (h *Handler) handleDrift(w http.ResponseWriter, r *http.Request) {
@@ -208,7 +238,11 @@ func (h *Handler) handleDrift(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	agentID := strings.Split(path, "/")[0]
-	points := h.repo.GetDrift(tenantID, agentID)
+	points, err := h.repo.GetDrift(r.Context(), tenantID, agentID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
 	httputil.WriteJSON(w, http.StatusOK, points, tenantID)
 }
 
@@ -222,7 +256,12 @@ func (h *Handler) handleSummary(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
-	httputil.WriteJSON(w, http.StatusOK, h.repo.GetSummary(tenantID), tenantID)
+	summary, err := h.repo.GetSummary(r.Context(), tenantID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, summary, tenantID)
 }
 
 func (h *Handler) handleProfiles(w http.ResponseWriter, r *http.Request) {
@@ -236,7 +275,12 @@ func (h *Handler) handleProfiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	agentID := r.URL.Query().Get("agent_id")
-	httputil.WriteJSON(w, http.StatusOK, h.repo.ListProfiles(tenantID, agentID), tenantID)
+	profiles, err := h.repo.ListProfiles(r.Context(), tenantID, agentID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, profiles, tenantID)
 }
 
 func (h *Handler) handleProfileByAgent(w http.ResponseWriter, r *http.Request) {
@@ -257,7 +301,11 @@ func (h *Handler) handleProfileByAgent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	agentID := strings.Split(path, "/")[0]
-	profile := h.repo.GetLatestProfile(tenantID, agentID)
+	profile, err := h.repo.GetLatestProfile(r.Context(), tenantID, agentID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
 	if profile == nil {
 		httputil.WriteJSON(w, http.StatusOK, []*DataProfile{}, tenantID)
 		return
@@ -274,7 +322,12 @@ func (h *Handler) handleContracts(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		agentID := r.URL.Query().Get("agent_id")
-		httputil.WriteJSON(w, http.StatusOK, h.repo.ListContracts(tenantID, agentID), tenantID)
+		contracts, err := h.repo.ListContracts(r.Context(), tenantID, agentID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, contracts, tenantID)
 	case http.MethodPost:
 		var req struct {
 			Name           string            `json:"name"`
@@ -294,7 +347,11 @@ func (h *Handler) handleContracts(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "name is required")
 			return
 		}
-		c := h.repo.CreateContract(tenantID, req.Name, req.Description, req.ProducerAgent, req.ConsumerAgents, req.SourceID, req.SchemaSpec, req.FreshnessSpec, req.QualitySpec)
+		c, err := h.repo.CreateContract(r.Context(), tenantID, req.Name, req.Description, req.ProducerAgent, req.ConsumerAgents, req.SourceID, req.SchemaSpec, req.FreshnessSpec, req.QualitySpec)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
 		httputil.WriteJSON(w, http.StatusCreated, c, tenantID)
 	default:
 		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -317,7 +374,11 @@ func (h *Handler) handleContractByID(w http.ResponseWriter, r *http.Request) {
 	contractID := strings.Split(path, "/")[0]
 	switch r.Method {
 	case http.MethodGet:
-		c := h.repo.GetContract(tenantID, contractID)
+		c, err := h.repo.GetContract(r.Context(), tenantID, contractID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
 		if c == nil {
 			httputil.WriteError(w, http.StatusNotFound, "CONTRACT_NOT_FOUND", "contract not found")
 			return
@@ -331,14 +392,14 @@ func (h *Handler) handleContractByID(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
-		c, err := h.repo.UpdateContractStatus(tenantID, contractID, req.Status)
+		c, err := h.repo.UpdateContractStatus(r.Context(), tenantID, contractID, req.Status)
 		if err != nil {
 			httputil.WriteError(w, http.StatusNotFound, "CONTRACT_NOT_FOUND", err.Error())
 			return
 		}
 		httputil.WriteJSON(w, http.StatusOK, c, tenantID)
 	case http.MethodDelete:
-		if err := h.repo.DeleteContract(tenantID, contractID); err != nil {
+		if err := h.repo.DeleteContract(r.Context(), tenantID, contractID); err != nil {
 			httputil.WriteError(w, http.StatusNotFound, "CONTRACT_NOT_FOUND", err.Error())
 			return
 		}
@@ -366,7 +427,12 @@ func (h *Handler) handleTrends(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	agentID := strings.Split(path, "/")[0]
-	httputil.WriteJSON(w, http.StatusOK, h.repo.GetQualityTrend(tenantID, agentID, 30), tenantID)
+	trend, err := h.repo.GetQualityTrend(r.Context(), tenantID, agentID, 30)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, trend, tenantID)
 }
 
 func (h *Handler) handleIncidents(w http.ResponseWriter, r *http.Request) {
@@ -378,7 +444,12 @@ func (h *Handler) handleIncidents(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		status := r.URL.Query().Get("status")
-		httputil.WriteJSON(w, http.StatusOK, h.repo.ListIncidents(tenantID, status), tenantID)
+		incidents, err := h.repo.ListIncidents(r.Context(), tenantID, status)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
+		httputil.WriteJSON(w, http.StatusOK, incidents, tenantID)
 	case http.MethodPost:
 		var req struct {
 			AgentID      string   `json:"agent_id"`
@@ -399,7 +470,11 @@ func (h *Handler) handleIncidents(w http.ResponseWriter, r *http.Request) {
 		if req.Severity == "" {
 			req.Severity = SeverityWarning
 		}
-		inc := h.repo.RecordIncident(tenantID, req.AgentID, req.ContractID, req.Title, req.Description, req.Severity, req.ViolationIDs)
+		inc, err := h.repo.RecordIncident(r.Context(), tenantID, req.AgentID, req.ContractID, req.Title, req.Description, req.Severity, req.ViolationIDs)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
 		httputil.WriteJSON(w, http.StatusCreated, inc, tenantID)
 	default:
 		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
@@ -431,7 +506,7 @@ func (h *Handler) handleIncidentByID(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 		return
 	}
-	inc, err := h.repo.UpdateIncidentStatus(tenantID, incidentID, req.Status)
+	inc, err := h.repo.UpdateIncidentStatus(r.Context(), tenantID, incidentID, req.Status)
 	if err != nil {
 		httputil.WriteError(w, http.StatusNotFound, "INCIDENT_NOT_FOUND", err.Error())
 		return
@@ -450,5 +525,10 @@ func (h *Handler) handleAnomalies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	agentID := r.URL.Query().Get("agent_id")
-	httputil.WriteJSON(w, http.StatusOK, h.repo.ListAnomalies(tenantID, agentID), tenantID)
+	anomalies, err := h.repo.ListAnomalies(r.Context(), tenantID, agentID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, anomalies, tenantID)
 }

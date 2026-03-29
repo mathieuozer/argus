@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/argus-platform/argus/pkg/httputil"
+	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -70,11 +71,17 @@ func (h *Handler) toBudgetItem(b *Budget) budgetItem {
 type Handler struct {
 	repo     *Repository
 	detector *AnomalyDetector
+	pgRepo   *PGRepository
 }
 
 // NewHandler creates a new cost governance handler.
 func NewHandler(repo *Repository, detector *AnomalyDetector) *Handler {
 	return &Handler{repo: repo, detector: detector}
+}
+
+// SetPG attaches a PostgreSQL repository for dual-write persistence.
+func (h *Handler) SetPG(pg *PGRepository) {
+	h.pgRepo = pg
 }
 
 // RegisterRoutes registers all cost governance API routes on the mux.
@@ -114,6 +121,13 @@ func (h *Handler) handleRecord(w http.ResponseWriter, r *http.Request) {
 	}
 
 	entry := h.repo.RecordCost(tenantID, req.AgentID, req.TaskID, req.CostUSD, req.TokensUsed, req.Model, req.Category)
+
+	if h.pgRepo != nil {
+		if _, err := h.pgRepo.RecordCost(r.Context(), tenantID, req.AgentID, req.TaskID, req.CostUSD, req.TokensUsed, req.Model, req.Category); err != nil {
+			logger.FromContext(r.Context()).Error("pg dual-write RecordCost failed: " + err.Error())
+		}
+	}
+
 	httputil.WriteJSON(w, http.StatusCreated, entry, tenantID)
 }
 
@@ -309,6 +323,13 @@ func (h *Handler) handleBudgets(w http.ResponseWriter, r *http.Request) {
 			period = "monthly"
 		}
 		budget := h.repo.CreateBudget(tenantID, req.AgentID, req.Name, limit, period, req.AlertThreshold)
+
+		if h.pgRepo != nil {
+			if _, err := h.pgRepo.CreateBudget(r.Context(), tenantID, req.AgentID, req.Name, limit, period, req.AlertThreshold); err != nil {
+				logger.FromContext(r.Context()).Error("pg dual-write CreateBudget failed: " + err.Error())
+			}
+		}
+
 		httputil.WriteJSON(w, http.StatusCreated, h.toBudgetItem(budget), tenantID)
 
 	default:
@@ -376,6 +397,13 @@ func (h *Handler) handleBudgetByID(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusNotFound, "BUDGET_NOT_FOUND", err.Error())
 			return
 		}
+
+		if h.pgRepo != nil {
+			if _, err := h.pgRepo.UpdateBudget(r.Context(), tenantID, budgetID, req.Name, limit, req.AlertThreshold, req.Enabled); err != nil {
+				logger.FromContext(r.Context()).Error("pg dual-write UpdateBudget failed: " + err.Error())
+			}
+		}
+
 		httputil.WriteJSON(w, http.StatusOK, h.toBudgetItem(updated), tenantID)
 
 	case http.MethodDelete:
@@ -383,6 +411,13 @@ func (h *Handler) handleBudgetByID(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusNotFound, "BUDGET_NOT_FOUND", err.Error())
 			return
 		}
+
+		if h.pgRepo != nil {
+			if err := h.pgRepo.DeleteBudget(r.Context(), tenantID, budgetID); err != nil {
+				logger.FromContext(r.Context()).Error("pg dual-write DeleteBudget failed: " + err.Error())
+			}
+		}
+
 		httputil.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"}, tenantID)
 
 	default:

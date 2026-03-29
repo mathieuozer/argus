@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/argus-platform/argus/pkg/httputil"
+	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -55,12 +56,18 @@ func (r *ReportRepository) AddReport(report *Report) {
 
 // ReportHandler handles compliance report requests.
 type ReportHandler struct {
-	repo *ReportRepository
+	repo   *ReportRepository
+	pgRepo *PGReportRepository
 }
 
 // NewReportHandler creates a handler.
 func NewReportHandler(repo *ReportRepository) *ReportHandler {
 	return &ReportHandler{repo: repo}
+}
+
+// SetPG attaches a PostgreSQL repository for dual-write persistence.
+func (h *ReportHandler) SetPG(pg *PGReportRepository) {
+	h.pgRepo = pg
 }
 
 // RegisterRoutes registers compliance report routes.
@@ -120,6 +127,12 @@ func (h *ReportHandler) GenerateReport(w http.ResponseWriter, r *http.Request) {
 	h.repo.mu.Lock()
 	h.repo.reports[report.ID] = report
 	h.repo.mu.Unlock()
+
+	if h.pgRepo != nil {
+		if err := h.pgRepo.Save(r.Context(), report); err != nil {
+			logger.FromContext(r.Context()).Error("pg dual-write Save compliance report failed: " + err.Error())
+		}
+	}
 
 	httputil.WriteJSON(w, http.StatusCreated, report, "")
 }

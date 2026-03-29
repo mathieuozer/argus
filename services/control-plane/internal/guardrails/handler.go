@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/argus-platform/argus/pkg/httputil"
+	"github.com/argus-platform/argus/pkg/logger"
 	"github.com/argus-platform/argus/pkg/tenancy"
 )
 
@@ -78,12 +79,18 @@ func (r *Repository) AddViolation(v *Violation) {
 
 // Handler handles guardrail HTTP requests.
 type Handler struct {
-	repo *Repository
+	repo   *Repository
+	pgRepo *PGRepository
 }
 
 // NewHandler creates a new guardrails handler.
 func NewHandler(repo *Repository) *Handler {
 	return &Handler{repo: repo}
+}
+
+// SetPG attaches a PostgreSQL repository for dual-write persistence.
+func (h *Handler) SetPG(pg *PGRepository) {
+	h.pgRepo = pg
 }
 
 // RegisterRoutes registers guardrail API routes.
@@ -135,6 +142,13 @@ func (h *Handler) CreateViolation(w http.ResponseWriter, r *http.Request) {
 	h.repo.mu.RUnlock()
 
 	h.repo.AddViolation(v)
+
+	if h.pgRepo != nil {
+		if err := h.pgRepo.SaveViolation(r.Context(), v); err != nil {
+			logger.FromContext(r.Context()).Error("pg dual-write SaveViolation failed: " + err.Error())
+		}
+	}
+
 	httputil.WriteJSON(w, http.StatusCreated, v, "")
 }
 
@@ -159,6 +173,12 @@ func (h *Handler) CreateRule(w http.ResponseWriter, r *http.Request) {
 	h.repo.mu.Lock()
 	h.repo.rules[rule.ID] = &rule
 	h.repo.mu.Unlock()
+
+	if h.pgRepo != nil {
+		if err := h.pgRepo.CreateRule(r.Context(), &rule); err != nil {
+			logger.FromContext(r.Context()).Error("pg dual-write CreateRule failed: " + err.Error())
+		}
+	}
 
 	httputil.WriteJSON(w, http.StatusCreated, rule, "")
 }

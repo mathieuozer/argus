@@ -11,12 +11,12 @@ import (
 
 // Handler provides REST handlers for the data catalog.
 type Handler struct {
-	repo *Repository
+	repo Store
 }
 
 // NewHandler creates a new catalog handler.
-func NewHandler(repo *Repository) *Handler {
-	return &Handler{repo: repo}
+func NewHandler(store Store) *Handler {
+	return &Handler{repo: store}
 }
 
 // RegisterRoutes registers all catalog API routes on the mux.
@@ -49,10 +49,18 @@ func (h *Handler) handleSources(w http.ResponseWriter, r *http.Request) {
 		tag := r.URL.Query().Get("tag")
 
 		if domain != "" || status != "" || classification != "" {
-			sources := h.repo.ListSourcesFiltered(tenantID, srcType, domain, status, classification)
+			sources, err := h.repo.ListSourcesFiltered(r.Context(), tenantID, srcType, domain, status, classification)
+			if err != nil {
+				httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+				return
+			}
 			httputil.WriteJSON(w, http.StatusOK, sources, tenantID)
 		} else {
-			sources := h.repo.ListSources(tenantID, srcType, tag)
+			sources, err := h.repo.ListSources(r.Context(), tenantID, srcType, tag)
+			if err != nil {
+				httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+				return
+			}
 			httputil.WriteJSON(w, http.StatusOK, sources, tenantID)
 		}
 
@@ -80,7 +88,11 @@ func (h *Handler) handleSources(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "name and type are required")
 			return
 		}
-		src := h.repo.CreateSourceFull(tenantID, req.Name, req.Description, req.Type, req.Owner, req.AgentID, req.Tags, req.Schema, req.Classification, req.Domain, req.Status, req.Steward, req.QualityScore, nil, nil, req.Columns)
+		src, err := h.repo.CreateSourceFull(r.Context(), tenantID, req.Name, req.Description, req.Type, req.Owner, req.AgentID, req.Tags, req.Schema, req.Classification, req.Domain, req.Status, req.Steward, req.QualityScore, nil, nil, req.Columns)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
 		httputil.WriteJSON(w, http.StatusCreated, src, tenantID)
 
 	default:
@@ -126,12 +138,16 @@ func (h *Handler) handleSourceByID(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		src := h.repo.GetSource(tenantID, sourceID)
+		src, err := h.repo.GetSource(r.Context(), tenantID, sourceID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
 		if src == nil {
 			httputil.WriteError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", "source not found")
 			return
 		}
-		h.repo.TrackPopularity(tenantID, sourceID, "view")
+		h.repo.TrackPopularity(r.Context(), tenantID, sourceID, "view")
 		httputil.WriteJSON(w, http.StatusOK, src, tenantID)
 
 	case http.MethodPut:
@@ -150,18 +166,18 @@ func (h *Handler) handleSourceByID(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
-		updated, err := h.repo.UpdateSource(tenantID, sourceID, req.Name, req.Description, req.Owner, req.Tags)
+		updated, err := h.repo.UpdateSource(r.Context(), tenantID, sourceID, req.Name, req.Description, req.Owner, req.Tags)
 		if err != nil {
 			httputil.WriteError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", err.Error())
 			return
 		}
 		if req.Classification != "" || req.Domain != "" || req.Status != "" || req.Steward != "" || req.QualityScore > 0 {
-			updated, _ = h.repo.UpdateSourceExtended(tenantID, sourceID, req.Classification, req.Domain, req.Status, req.Steward, req.QualityScore)
+			updated, _ = h.repo.UpdateSourceExtended(r.Context(), tenantID, sourceID, req.Classification, req.Domain, req.Status, req.Steward, req.QualityScore)
 		}
 		httputil.WriteJSON(w, http.StatusOK, updated, tenantID)
 
 	case http.MethodDelete:
-		if err := h.repo.DeleteSource(tenantID, sourceID); err != nil {
+		if err := h.repo.DeleteSource(r.Context(), tenantID, sourceID); err != nil {
 			httputil.WriteError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", err.Error())
 			return
 		}
@@ -177,7 +193,11 @@ func (h *Handler) handleSourceLineage(w http.ResponseWriter, r *http.Request, te
 		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
-	graph := h.repo.GetLineage(tenantID, sourceID)
+	graph, err := h.repo.GetLineage(r.Context(), tenantID, sourceID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
 	if graph == nil {
 		httputil.WriteError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", "source not found")
 		return
@@ -190,7 +210,11 @@ func (h *Handler) handleImpact(w http.ResponseWriter, r *http.Request, tenantID,
 		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
-	ia := h.repo.GetImpactAnalysis(tenantID, sourceID)
+	ia, err := h.repo.GetImpactAnalysis(r.Context(), tenantID, sourceID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
 	if ia == nil {
 		httputil.WriteError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", "source not found")
 		return
@@ -201,7 +225,11 @@ func (h *Handler) handleImpact(w http.ResponseWriter, r *http.Request, tenantID,
 func (h *Handler) handleColumns(w http.ResponseWriter, r *http.Request, tenantID, sourceID string) {
 	switch r.Method {
 	case http.MethodGet:
-		src := h.repo.GetSource(tenantID, sourceID)
+		src, err := h.repo.GetSource(r.Context(), tenantID, sourceID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
 		if src == nil {
 			httputil.WriteError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", "source not found")
 			return
@@ -220,7 +248,7 @@ func (h *Handler) handleColumns(w http.ResponseWriter, r *http.Request, tenantID
 			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
-		if err := h.repo.SetSourceColumns(tenantID, sourceID, req.Columns); err != nil {
+		if err := h.repo.SetSourceColumns(r.Context(), tenantID, sourceID, req.Columns); err != nil {
 			httputil.WriteError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", err.Error())
 			return
 		}
@@ -236,7 +264,11 @@ func (h *Handler) handleProfile(w http.ResponseWriter, r *http.Request, tenantID
 		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
-	src := h.repo.GetSource(tenantID, sourceID)
+	src, err := h.repo.GetSource(r.Context(), tenantID, sourceID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
 	if src == nil {
 		httputil.WriteError(w, http.StatusNotFound, "SOURCE_NOT_FOUND", "source not found")
 		return
@@ -254,7 +286,11 @@ func (h *Handler) handleColumnLineage(w http.ResponseWriter, r *http.Request, te
 		return
 	}
 	columnName := r.URL.Query().Get("column")
-	entries := h.repo.GetColumnLineage(tenantID, sourceID, columnName)
+	entries, err := h.repo.GetColumnLineage(r.Context(), tenantID, sourceID, columnName)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
 	if entries == nil {
 		entries = []*ColumnLineageEntry{}
 	}
@@ -271,7 +307,12 @@ func (h *Handler) handleFullGraph(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
-	httputil.WriteJSON(w, http.StatusOK, h.repo.GetFullLineageGraph(tenantID), tenantID)
+	graph, err := h.repo.GetFullLineageGraph(r.Context(), tenantID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, graph, tenantID)
 }
 
 func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
@@ -294,7 +335,11 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 		"domain":         r.URL.Query().Get("domain"),
 		"classification": r.URL.Query().Get("classification"),
 	}
-	results := h.repo.SearchCatalog(tenantID, q, filters)
+	results, err := h.repo.SearchCatalog(r.Context(), tenantID, q, filters)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
 	if results == nil {
 		results = []*SearchResult{}
 	}
@@ -311,7 +356,12 @@ func (h *Handler) handleStats(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
 		return
 	}
-	httputil.WriteJSON(w, http.StatusOK, h.repo.GetCatalogStats(tenantID), tenantID)
+	stats, err := h.repo.GetCatalogStats(r.Context(), tenantID)
+	if err != nil {
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, stats, tenantID)
 }
 
 func (h *Handler) handleGlossary(w http.ResponseWriter, r *http.Request) {
@@ -324,7 +374,11 @@ func (h *Handler) handleGlossary(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		domain := r.URL.Query().Get("domain")
-		terms := h.repo.ListGlossaryTerms(tenantID, domain)
+		terms, err := h.repo.ListGlossaryTerms(r.Context(), tenantID, domain)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
 		httputil.WriteJSON(w, http.StatusOK, terms, tenantID)
 
 	case http.MethodPost:
@@ -344,7 +398,11 @@ func (h *Handler) handleGlossary(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "term and definition are required")
 			return
 		}
-		gt := h.repo.CreateGlossaryTerm(tenantID, req.Term, req.Definition, req.Domain, req.Owner, req.RelatedTerms, req.LinkedAssets)
+		gt, err := h.repo.CreateGlossaryTerm(r.Context(), tenantID, req.Term, req.Definition, req.Domain, req.Owner, req.RelatedTerms, req.LinkedAssets)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
 		httputil.WriteJSON(w, http.StatusCreated, gt, tenantID)
 
 	default:
@@ -374,7 +432,7 @@ func (h *Handler) handleGlossaryByID(w http.ResponseWriter, r *http.Request) {
 			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body")
 			return
 		}
-		gt, err := h.repo.UpdateGlossaryTerm(tenantID, termID, req.Term, req.Definition, req.Domain)
+		gt, err := h.repo.UpdateGlossaryTerm(r.Context(), tenantID, termID, req.Term, req.Definition, req.Domain)
 		if err != nil {
 			httputil.WriteError(w, http.StatusNotFound, "TERM_NOT_FOUND", err.Error())
 			return
@@ -382,7 +440,7 @@ func (h *Handler) handleGlossaryByID(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteJSON(w, http.StatusOK, gt, tenantID)
 
 	case http.MethodDelete:
-		if err := h.repo.DeleteGlossaryTerm(tenantID, termID); err != nil {
+		if err := h.repo.DeleteGlossaryTerm(r.Context(), tenantID, termID); err != nil {
 			httputil.WriteError(w, http.StatusNotFound, "TERM_NOT_FOUND", err.Error())
 			return
 		}
@@ -402,7 +460,11 @@ func (h *Handler) handleLineageEdges(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		edges := h.repo.ListEdges(tenantID)
+		edges, err := h.repo.ListEdges(r.Context(), tenantID)
+		if err != nil {
+			httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
 		httputil.WriteJSON(w, http.StatusOK, edges, tenantID)
 
 	case http.MethodPost:
@@ -424,7 +486,7 @@ func (h *Handler) handleLineageEdges(w http.ResponseWriter, r *http.Request) {
 		if req.TransformType == "" {
 			req.TransformType = "copy"
 		}
-		edge, err := h.repo.AddLineageEdge(tenantID, req.SourceID, req.TargetID, req.TransformType, req.AgentID, req.Description)
+		edge, err := h.repo.AddLineageEdge(r.Context(), tenantID, req.SourceID, req.TargetID, req.TransformType, req.AgentID, req.Description)
 		if err != nil {
 			httputil.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
