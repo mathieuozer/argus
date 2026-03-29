@@ -62,33 +62,34 @@ function GovernancePage() {
           <div className="grid grid-auto" style={{ marginBottom: 'var(--spacing-lg)' }}>
             <div className="card">
               <div className="stat-label">{t('governance.classificationPolicies')}</div>
-              <div className="stat-value">{summary.active_classification_policies}/{summary.total_classification_policies}</div>
+              <div className="stat-value">{summary.active_policies}/{summary.total_policies}</div>
               <div className="stat-sub">{t('governance.activeOfTotal')}</div>
             </div>
             <div className="card">
               <div className="stat-label">{t('governance.retentionPolicies')}</div>
-              <div className="stat-value">{summary.total_retention_policies}</div>
+              <div className="stat-value">{summary.retention_policies}</div>
             </div>
             <div className="card">
               <div className="stat-label">{t('governance.piiScans')}</div>
-              <div className="stat-value">{summary.total_pii_scans}</div>
+              <div className="stat-value">{summary.pii_scan_results}</div>
               <div className="stat-sub">{summary.high_risk_sources} {t('governance.highRisk')}</div>
             </div>
             <div className="card">
               <div className="stat-label">{t('governance.complianceStatus')}</div>
-              <div className="stat-value">{summary.compliant_mappings}/{summary.total_compliance_mappings}</div>
+              <div className="stat-value">{summary.compliant_count}/{summary.compliance_mappings}</div>
               <div className="stat-sub">
-                <span className="badge badge-success">{summary.compliant_mappings} {t('governance.compliant')}</span>{' '}
-                <span className="badge badge-warning">{summary.partial_mappings} {t('governance.partial')}</span>
+                <span className="badge badge-success">{summary.compliant_count} {t('governance.compliant')}</span>{' '}
+                <span className="badge badge-error">{summary.non_compliant_count} {t('governance.nonCompliant')}</span>
               </div>
             </div>
             <div className="card">
               <div className="stat-label">{t('governance.dataStewards')}</div>
-              <div className="stat-value">{summary.total_stewards}</div>
+              <div className="stat-value">{summary.data_stewards}</div>
+              <div className="stat-sub">{summary.unowned_sources} {t('governance.unowned')}</div>
             </div>
             <div className="card">
               <div className="stat-label">{t('governance.accessEvents')}</div>
-              <div className="stat-value">{summary.total_access_logs}</div>
+              <div className="stat-value">{summary.recent_access_logs}</div>
             </div>
           </div>
         </div>

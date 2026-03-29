@@ -33,8 +33,15 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      const error: ApiError = await response.json();
-      throw new Error(error.error?.message || 'Request failed');
+      try {
+        const error: ApiError = await response.json();
+        throw new Error(error.error?.message || 'Request failed');
+      } catch (parseErr) {
+        if (parseErr instanceof SyntaxError) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+        throw parseErr;
+      }
     }
 
     return response.json();

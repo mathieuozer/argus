@@ -85,15 +85,16 @@ export interface DataSteward {
 }
 
 export interface GovernanceSummary {
-  total_classification_policies: number;
-  active_classification_policies: number;
-  total_retention_policies: number;
-  total_access_logs: number;
-  total_pii_scans: number;
+  total_policies: number;
+  active_policies: number;
+  classification_coverage: Record<string, number>;
+  retention_policies: number;
+  pii_scan_results: number;
   high_risk_sources: number;
-  total_compliance_mappings: number;
-  compliant_mappings: number;
-  partial_mappings: number;
-  non_compliant_mappings: number;
-  total_stewards: number;
+  compliance_mappings: number;
+  compliant_count: number;
+  non_compliant_count: number;
+  data_stewards: number;
+  unowned_sources: number;
+  recent_access_logs: number;
 }
