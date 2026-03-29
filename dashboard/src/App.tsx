@@ -21,6 +21,7 @@ import RAGPage from './pages/RAGPage';
 import FeedbackPage from './pages/FeedbackPage';
 import PlaygroundPage from './pages/PlaygroundPage';
 import CompliancePage from './pages/CompliancePage';
+import GovernancePage from './pages/GovernancePage';
 
 function App() {
   return (
@@ -52,6 +53,7 @@ function App() {
         <Route path="/feedback" element={<FeedbackPage />} />
         <Route path="/playground" element={<PlaygroundPage />} />
         <Route path="/compliance" element={<CompliancePage />} />
+        <Route path="/governance" element={<GovernancePage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
     </Routes>

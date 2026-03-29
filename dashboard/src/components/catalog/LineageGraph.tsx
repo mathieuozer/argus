@@ -5,45 +5,78 @@ interface LineageGraphProps {
   data: LineageGraphType;
 }
 
-const NODE_COLORS: Record<string, string> = {
-  agent: 'var(--color-primary)',
+const TYPE_COLORS: Record<string, string> = {
   database: '#f59e0b',
-  storage: '#8b5cf6',
-  external_api: '#06b6d4',
-  tool: '#ec4899',
+  api: '#06b6d4',
+  file: '#8b5cf6',
+  stream: '#10b981',
+  model: '#ec4899',
+  storage: '#6366f1',
+  tool: '#f43f5e',
 };
 
-const NODE_WIDTH = 140;
-const NODE_HEIGHT = 40;
-const PADDING = 60;
+const CLASS_BORDER: Record<string, string> = {
+  restricted: 'var(--color-error)',
+  confidential: 'var(--color-warning)',
+  internal: 'var(--color-info)',
+};
+
+const NODE_WIDTH = 180;
+const NODE_HEIGHT = 55;
+const H_GAP = 60;
+const V_GAP = 25;
+const PADDING = 40;
 
 function LineageGraph({ data }: LineageGraphProps) {
   const layout = useMemo(() => {
-    const nodesByType: Record<string, typeof data.nodes> = {};
-    for (const node of data.nodes) {
-      const type = node.type;
-      if (!nodesByType[type]) nodesByType[type] = [];
-      nodesByType[type].push(node);
+    if (!data.nodes || data.nodes.length === 0) return { positions: {}, totalWidth: 600, totalHeight: 300 };
+
+    // Build adjacency for topological sort
+    const adj: Record<string, string[]> = {};
+    const inDegree: Record<string, number> = {};
+    for (const n of data.nodes) {
+      adj[n.id] = [];
+      inDegree[n.id] = 0;
+    }
+    for (const e of data.edges) {
+      if (adj[e.source_id]) adj[e.source_id].push(e.target_id);
+      if (inDegree[e.target_id] !== undefined) inDegree[e.target_id]++;
     }
 
-    const columns = ['database', 'storage', 'agent', 'external_api', 'tool'];
+    // BFS topological layering
+    const layers: string[][] = [];
+    const visited = new Set<string>();
+    let queue = Object.keys(inDegree).filter(id => inDegree[id] === 0);
+    while (queue.length > 0) {
+      layers.push(queue);
+      queue.forEach(id => visited.add(id));
+      const next: string[] = [];
+      for (const id of queue) {
+        for (const child of (adj[id] || [])) {
+          inDegree[child]--;
+          if (inDegree[child] === 0 && !visited.has(child)) next.push(child);
+        }
+      }
+      queue = next;
+    }
+    // Add any remaining nodes not reached
+    const remaining = data.nodes.filter(n => !visited.has(n.id)).map(n => n.id);
+    if (remaining.length > 0) layers.push(remaining);
+
     const positions: Record<string, { x: number; y: number }> = {};
-    let colIdx = 0;
-
-    for (const type of columns) {
-      const nodes = nodesByType[type] || [];
-      nodes.forEach((node, rowIdx) => {
-        positions[node.id] = {
-          x: PADDING + colIdx * (NODE_WIDTH + 80),
-          y: PADDING + rowIdx * (NODE_HEIGHT + 30),
+    for (let col = 0; col < layers.length; col++) {
+      for (let row = 0; row < layers[col].length; row++) {
+        positions[layers[col][row]] = {
+          x: PADDING + col * (NODE_WIDTH + H_GAP),
+          y: PADDING + row * (NODE_HEIGHT + V_GAP),
         };
-      });
-      if (nodes.length > 0) colIdx++;
+      }
     }
 
-    const totalWidth = PADDING * 2 + colIdx * (NODE_WIDTH + 80);
-    const maxRows = Math.max(...Object.values(nodesByType).map((n) => n.length), 1);
-    const totalHeight = PADDING * 2 + maxRows * (NODE_HEIGHT + 30);
+    const maxCol = layers.length;
+    const maxRow = Math.max(...layers.map(l => l.length), 1);
+    const totalWidth = PADDING * 2 + maxCol * (NODE_WIDTH + H_GAP);
+    const totalHeight = PADDING * 2 + maxRow * (NODE_HEIGHT + V_GAP);
 
     return { positions, totalWidth, totalHeight };
   }, [data]);
@@ -62,13 +95,13 @@ function LineageGraph({ data }: LineageGraphProps) {
         </defs>
 
         {data.edges.map((edge, i) => {
-          const sourcePos = layout.positions[edge.source];
-          const targetPos = layout.positions[edge.target];
+          const sourcePos = layout.positions[edge.source_id];
+          const targetPos = layout.positions[edge.target_id];
           if (!sourcePos || !targetPos) return null;
 
-          const x1 = sourcePos.x + NODE_WIDTH / 2;
+          const x1 = sourcePos.x + NODE_WIDTH;
           const y1 = sourcePos.y + NODE_HEIGHT / 2;
-          const x2 = targetPos.x + NODE_WIDTH / 2;
+          const x2 = targetPos.x;
           const y2 = targetPos.y + NODE_HEIGHT / 2;
 
           return (
@@ -77,7 +110,6 @@ function LineageGraph({ data }: LineageGraphProps) {
                 x1={x1} y1={y1} x2={x2} y2={y2}
                 stroke="var(--color-text-muted)"
                 strokeWidth="1.5"
-                strokeDasharray={edge.label === 'read' ? '5,3' : undefined}
                 markerEnd="url(#arrowhead)"
                 opacity={0.6}
               />
@@ -86,9 +118,9 @@ function LineageGraph({ data }: LineageGraphProps) {
                 y={(y1 + y2) / 2 - 6}
                 textAnchor="middle"
                 fill="var(--color-text-dim)"
-                fontSize="10"
+                fontSize="9"
               >
-                {edge.label} ({edge.span_count})
+                {edge.transform_type}
               </text>
             </g>
           );
@@ -97,41 +129,79 @@ function LineageGraph({ data }: LineageGraphProps) {
         {data.nodes.map((node) => {
           const pos = layout.positions[node.id];
           if (!pos) return null;
-          const color = NODE_COLORS[node.type] || 'var(--color-text-muted)';
+          const fillColor = TYPE_COLORS[node.type] || 'var(--color-text-muted)';
+          const borderColor = CLASS_BORDER[node.classification] || fillColor;
 
           return (
             <g key={node.id}>
               <rect
                 x={pos.x} y={pos.y}
                 width={NODE_WIDTH} height={NODE_HEIGHT}
-                rx="6" ry="6"
+                rx="8" ry="8"
                 fill="var(--color-surface)"
-                stroke={color}
+                stroke={borderColor}
                 strokeWidth="2"
               />
+              {/* Type color indicator */}
+              <rect
+                x={pos.x} y={pos.y}
+                width="6" height={NODE_HEIGHT}
+                rx="8" ry="0"
+                fill={fillColor}
+                clipPath={`inset(0 ${NODE_WIDTH - 6}px 0 0)`}
+              />
+              <rect
+                x={pos.x} y={pos.y}
+                width="6" height={NODE_HEIGHT}
+                fill={fillColor}
+                style={{ borderRadius: '8px 0 0 8px' }}
+              />
               <text
-                x={pos.x + NODE_WIDTH / 2}
-                y={pos.y + NODE_HEIGHT / 2 - 4}
-                textAnchor="middle"
+                x={pos.x + 14}
+                y={pos.y + 18}
                 fill="var(--color-text)"
                 fontSize="11"
-                fontWeight="500"
+                fontWeight="600"
               >
-                {node.id.length > 16 ? node.id.slice(0, 14) + '..' : node.id}
+                {node.name.length > 20 ? node.name.slice(0, 18) + '..' : node.name}
               </text>
               <text
-                x={pos.x + NODE_WIDTH / 2}
-                y={pos.y + NODE_HEIGHT / 2 + 10}
-                textAnchor="middle"
+                x={pos.x + 14}
+                y={pos.y + 32}
                 fill="var(--color-text-dim)"
                 fontSize="9"
               >
-                {node.type}
+                {node.type} | {node.domain || '-'}
               </text>
+              {node.quality_score > 0 && (
+                <text
+                  x={pos.x + 14}
+                  y={pos.y + 45}
+                  fill={node.quality_score >= 90 ? 'var(--color-success)' : node.quality_score >= 70 ? 'var(--color-warning)' : 'var(--color-error)'}
+                  fontSize="9"
+                  fontWeight="500"
+                >
+                  Quality: {node.quality_score.toFixed(0)}%
+                </text>
+              )}
             </g>
           );
         })}
       </svg>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
+        {Object.entries(TYPE_COLORS).map(([type, color]) => {
+          const hasType = data.nodes.some(n => n.type === type);
+          if (!hasType) return null;
+          return (
+            <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: color }} />
+              <span style={{ fontSize: '0.8em', opacity: 0.8 }}>{type}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

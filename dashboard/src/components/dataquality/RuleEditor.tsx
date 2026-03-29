@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { DQRule } from '../../types/dataquality';
 
 interface RuleEditorProps {
-  onSave: (rule: Omit<DQRule, 'id' | 'created_at' | 'updated_at'>) => void;
+  onSave: (rule: Partial<DQRule>) => void;
   onCancel: () => void;
 }
 
@@ -11,34 +11,31 @@ function RuleEditor({ onSave, onCancel }: RuleEditorProps) {
   const { t } = useTranslation();
   const [agentId, setAgentId] = useState('');
   const [name, setName] = useState('');
-  const [ruleType, setRuleType] = useState<DQRule['type']>('schema');
-  const [target, setTarget] = useState<DQRule['target']>('output');
+  const [ruleType, setRuleType] = useState('completeness');
+  const [field, setField] = useState('');
+  const [operator, setOperator] = useState('lt');
+  const [threshold, setThreshold] = useState('');
   const [severity, setSeverity] = useState<DQRule['severity']>('warning');
-  const [schemaText, setSchemaText] = useState('{\n  "required": ["amount", "currency"]\n}');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const schema = JSON.parse(schemaText);
-      onSave({
-        agent_id: agentId,
-        name,
-        type: ruleType,
-        target,
-        schema,
-        severity,
-        enabled: true,
-      });
-    } catch {
-      // Invalid JSON
-    }
+    onSave({
+      agent_id: agentId,
+      name,
+      type: ruleType,
+      field,
+      operator,
+      threshold,
+      severity,
+      enabled: true,
+    });
   };
 
   return (
     <form className="rule-editor" onSubmit={handleSubmit}>
       <div className="form-group">
         <label>{t('ruleEditor.agentId')}</label>
-        <input type="text" value={agentId} onChange={(e) => setAgentId(e.target.value)} required />
+        <input type="text" value={agentId} onChange={(e) => setAgentId(e.target.value)} />
       </div>
       <div className="form-group">
         <label>{t('ruleEditor.ruleName')}</label>
@@ -47,19 +44,30 @@ function RuleEditor({ onSave, onCancel }: RuleEditorProps) {
       <div className="form-row">
         <div className="form-group">
           <label>{t('ruleEditor.type')}</label>
-          <select value={ruleType} onChange={(e) => setRuleType(e.target.value as DQRule['type'])}>
-            <option value="schema">{t('ruleEditor.typeOptions.schema')}</option>
-            <option value="range">{t('ruleEditor.typeOptions.range')}</option>
-            <option value="regex">{t('ruleEditor.typeOptions.regex')}</option>
+          <select value={ruleType} onChange={(e) => setRuleType(e.target.value)}>
+            <option value="completeness">Completeness</option>
+            <option value="accuracy">Accuracy</option>
+            <option value="consistency">Consistency</option>
+            <option value="timeliness">Timeliness</option>
+            <option value="uniqueness">Uniqueness</option>
           </select>
         </div>
         <div className="form-group">
-          <label>{t('ruleEditor.target')}</label>
-          <select value={target} onChange={(e) => setTarget(e.target.value as DQRule['target'])}>
-            <option value="output">{t('ruleEditor.targetOptions.output')}</option>
-            <option value="input">{t('ruleEditor.targetOptions.input')}</option>
-            <option value="attribute">{t('ruleEditor.targetOptions.attribute')}</option>
+          <label>Field</label>
+          <input type="text" value={field} onChange={(e) => setField(e.target.value)} placeholder="e.g. latency_ms" />
+        </div>
+        <div className="form-group">
+          <label>Operator</label>
+          <select value={operator} onChange={(e) => setOperator(e.target.value)}>
+            <option value="lt">Less than</option>
+            <option value="gt">Greater than</option>
+            <option value="eq">Equal to</option>
+            <option value="not_null">Not null</option>
           </select>
+        </div>
+        <div className="form-group">
+          <label>Threshold</label>
+          <input type="text" value={threshold} onChange={(e) => setThreshold(e.target.value)} placeholder="e.g. 5000" />
         </div>
         <div className="form-group">
           <label>{t('ruleEditor.severity')}</label>
@@ -69,15 +77,6 @@ function RuleEditor({ onSave, onCancel }: RuleEditorProps) {
             <option value="info">{t('ruleEditor.severityOptions.info')}</option>
           </select>
         </div>
-      </div>
-      <div className="form-group">
-        <label>{t('ruleEditor.schemaConfig')}</label>
-        <textarea
-          className="code-textarea"
-          rows={6}
-          value={schemaText}
-          onChange={(e) => setSchemaText(e.target.value)}
-        />
       </div>
       <div className="form-actions">
         <button type="button" className="btn btn-secondary" onClick={onCancel}>{t('common.cancel')}</button>

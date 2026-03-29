@@ -30,6 +30,7 @@ import (
 	"github.com/argus-platform/argus/services/control-plane/internal/dataquality"
 	"github.com/argus-platform/argus/services/control-plane/internal/eval"
 	"github.com/argus-platform/argus/services/control-plane/internal/feedback"
+	"github.com/argus-platform/argus/services/control-plane/internal/governance"
 	"github.com/argus-platform/argus/services/control-plane/internal/guardrails"
 	"github.com/argus-platform/argus/services/control-plane/internal/policy"
 	"github.com/argus-platform/argus/services/control-plane/internal/prompts"
@@ -153,11 +154,14 @@ func main() {
 	complianceRepo := compliance.NewReportRepository()
 	complianceHandler := compliance.NewReportHandler(complianceRepo)
 
+	govRepo := governance.NewRepository()
+	govHandler := governance.NewHandler(govRepo)
+
 	// Seed demo data for dashboard (non-production only)
 	if os.Getenv("ARGUS_ENV") != "production" {
 		seedControlPlaneDemo(alertRouter, auditLog, traceSvc, sloRepo, costRepo,
 			evalRepo, guardrailsRepo, ragRepo, promptsRepo, feedbackRepo,
-			complianceRepo, dqRepo, catalogRepo, log)
+			complianceRepo, dqRepo, catalogRepo, govRepo, log)
 	}
 
 	// WebSocket stream hub for real-time agent and telemetry events
@@ -216,6 +220,7 @@ func main() {
 	promptsHandler.RegisterRoutes(mux)
 	ragHandler.RegisterRoutes(mux)
 	complianceHandler.RegisterRoutes(mux)
+	govHandler.RegisterRoutes(mux)
 
 	// WebSocket stream routes (real-time agent and telemetry events)
 	wsHub.RegisterRoutes(mux)
@@ -607,6 +612,7 @@ func seedControlPlaneDemo(
 	complianceRepo *compliance.ReportRepository,
 	dqRepo *dataquality.Repository,
 	catalogRepo *catalog.Repository,
+	govRepo *governance.Repository,
 	log *zap.Logger,
 ) {
 	tid := "default"
@@ -898,18 +904,185 @@ func seedControlPlaneDemo(
 		dqRepo.RecordScore(tid, agentID, 85+float64(len(agentID)%10), 92, 88, 90, 87, 100, 87, 13)
 	}
 
-	// Seed catalog sources with lineage
-	src1 := catalogRepo.CreateSource(tid, "Transaction Database", "Primary financial transaction store",
+	// Seed enhanced catalog sources with full metadata
+	src1 := catalogRepo.CreateSourceFull(tid, "Transaction Database", "Primary financial transaction store with all payment records",
 		catalog.SourceTypeDatabase, "finance-team", "budget-reconciler",
-		[]string{"financial", "transactions", "production"}, map[string]string{"amount": "decimal", "currency": "string", "date": "timestamp"})
-	src2 := catalogRepo.CreateSource(tid, "Report Storage", "Generated reports and summaries",
+		[]string{"financial", "transactions", "production", "critical"},
+		map[string]string{"amount": "decimal", "currency": "string", "date": "timestamp", "account_id": "string", "status": "string"},
+		"confidential", "finance", "active", "Sarah Chen",
+		92.5,
+		&catalog.FreshnessInfo{LastRefreshed: now.Add(-30 * time.Minute), RefreshFrequency: "30m", SLASeconds: 3600, IsStale: false},
+		&catalog.ProfileInfo{RowCount: 2500000, ColumnCount: 12, SizeBytes: 4800000000, NullRate: 0.02, DuplicateRate: 0.001, Completeness: 98.5, LastProfiled: now.Add(-2 * time.Hour)},
+		[]*catalog.Column{
+			{Name: "transaction_id", Type: "uuid", Description: "Unique transaction identifier", Classification: "internal", UniqueCount: 2500000, NullRate: 0},
+			{Name: "amount", Type: "decimal(18,2)", Description: "Transaction amount", Classification: "confidential", NullRate: 0, MinValue: "0.01", MaxValue: "9999999.99"},
+			{Name: "currency", Type: "varchar(3)", Description: "ISO 4217 currency code", Classification: "internal", UniqueCount: 12, NullRate: 0},
+			{Name: "account_id", Type: "uuid", Description: "Customer account reference", IsPII: true, Classification: "restricted", UniqueCount: 45000, NullRate: 0},
+			{Name: "customer_name", Type: "varchar(255)", Description: "Customer full name", IsPII: true, Classification: "restricted", UniqueCount: 42000, NullRate: 0.01},
+			{Name: "email", Type: "varchar(255)", Description: "Customer email address", IsPII: true, Classification: "restricted", UniqueCount: 41000, NullRate: 0.05},
+			{Name: "status", Type: "varchar(20)", Description: "Transaction status", Classification: "internal", UniqueCount: 5, NullRate: 0},
+			{Name: "created_at", Type: "timestamp", Description: "Transaction creation time", Classification: "internal", NullRate: 0},
+		},
+	)
+
+	src2 := catalogRepo.CreateSourceFull(tid, "Report Storage", "Generated reports, summaries, and analytics outputs",
 		catalog.SourceTypeFile, "analytics-team", "doc-summarizer",
-		[]string{"reports", "summaries", "output"}, map[string]string{"title": "string", "content": "text", "format": "string"})
-	src3 := catalogRepo.CreateSource(tid, "Ticket Queue API", "Support ticket management system",
+		[]string{"reports", "summaries", "output", "analytics"},
+		map[string]string{"title": "string", "content": "text", "format": "string", "generated_by": "string"},
+		"internal", "analytics", "active", "Mike Johnson",
+		88.0,
+		&catalog.FreshnessInfo{LastRefreshed: now.Add(-1 * time.Hour), RefreshFrequency: "1h", SLASeconds: 7200, IsStale: false},
+		&catalog.ProfileInfo{RowCount: 15000, ColumnCount: 8, SizeBytes: 250000000, NullRate: 0.05, DuplicateRate: 0.02, Completeness: 95.0, LastProfiled: now.Add(-3 * time.Hour)},
+		[]*catalog.Column{
+			{Name: "report_id", Type: "uuid", Description: "Unique report identifier", Classification: "internal", UniqueCount: 15000, NullRate: 0},
+			{Name: "title", Type: "varchar(500)", Description: "Report title", Classification: "internal", NullRate: 0},
+			{Name: "content", Type: "text", Description: "Full report content", Classification: "confidential", NullRate: 0.02},
+			{Name: "format", Type: "varchar(10)", Description: "Output format (pdf, html, json)", Classification: "internal", UniqueCount: 3, NullRate: 0},
+		},
+	)
+
+	src3 := catalogRepo.CreateSourceFull(tid, "Ticket Queue API", "Support ticket management system via REST API",
 		catalog.SourceTypeAPI, "support-team", "ticket-classifier",
-		[]string{"support", "tickets", "api"}, map[string]string{"ticket_id": "string", "priority": "string", "category": "string"})
-	_, _ = catalogRepo.AddLineageEdge(tid, src1.ID, src2.ID, "transform", "budget-reconciler", "Transactions → Budget Reports")
-	_, _ = catalogRepo.AddLineageEdge(tid, src3.ID, src2.ID, "aggregate", "doc-summarizer", "Tickets → Summary Reports")
+		[]string{"support", "tickets", "api", "customer-facing"},
+		map[string]string{"ticket_id": "string", "priority": "string", "category": "string", "description": "text"},
+		"confidential", "support", "active", "Alex Rivera",
+		85.0,
+		&catalog.FreshnessInfo{LastRefreshed: now.Add(-5 * time.Minute), RefreshFrequency: "5m", SLASeconds: 600, IsStale: false},
+		&catalog.ProfileInfo{RowCount: 89000, ColumnCount: 15, SizeBytes: 180000000, NullRate: 0.08, DuplicateRate: 0.005, Completeness: 92.0, LastProfiled: now.Add(-1 * time.Hour)},
+		[]*catalog.Column{
+			{Name: "ticket_id", Type: "varchar(20)", Description: "Support ticket identifier", Classification: "internal", UniqueCount: 89000, NullRate: 0},
+			{Name: "customer_email", Type: "varchar(255)", Description: "Customer email", IsPII: true, Classification: "restricted", UniqueCount: 55000, NullRate: 0.01},
+			{Name: "priority", Type: "enum", Description: "Ticket priority level", Classification: "internal", UniqueCount: 4, NullRate: 0},
+			{Name: "category", Type: "varchar(50)", Description: "Ticket category", Classification: "internal", UniqueCount: 12, NullRate: 0.02},
+			{Name: "description", Type: "text", Description: "Ticket description text", Classification: "confidential", NullRate: 0},
+		},
+	)
+
+	src4 := catalogRepo.CreateSourceFull(tid, "ML Feature Store", "Feature store for ML model training and inference",
+		catalog.SourceTypeDatabase, "ml-team", "data-pipeline",
+		[]string{"ml", "features", "training", "inference"},
+		map[string]string{"feature_name": "string", "feature_value": "float64", "entity_id": "string"},
+		"internal", "ml-engineering", "active", "Dr. Priya Patel",
+		95.0,
+		&catalog.FreshnessInfo{LastRefreshed: now.Add(-15 * time.Minute), RefreshFrequency: "15m", SLASeconds: 1800, IsStale: false},
+		&catalog.ProfileInfo{RowCount: 12000000, ColumnCount: 45, SizeBytes: 24000000000, NullRate: 0.01, DuplicateRate: 0.0001, Completeness: 99.2, LastProfiled: now.Add(-30 * time.Minute)},
+		nil,
+	)
+
+	src5 := catalogRepo.CreateSourceFull(tid, "Compliance Audit Log", "Immutable audit trail for regulatory compliance",
+		catalog.SourceTypeStream, "security-team", "code-reviewer",
+		[]string{"audit", "compliance", "immutable", "security"},
+		map[string]string{"event_id": "string", "actor": "string", "action": "string", "resource": "string"},
+		"restricted", "security", "active", "James Wilson",
+		97.0,
+		&catalog.FreshnessInfo{LastRefreshed: now.Add(-1 * time.Minute), RefreshFrequency: "1m", SLASeconds: 120, IsStale: false},
+		&catalog.ProfileInfo{RowCount: 5800000, ColumnCount: 18, SizeBytes: 8900000000, NullRate: 0.0, DuplicateRate: 0.0, Completeness: 100.0, LastProfiled: now.Add(-10 * time.Minute)},
+		nil,
+	)
+
+	// Lineage edges
+	_, _ = catalogRepo.AddLineageEdge(tid, src1.ID, src2.ID, "transform", "budget-reconciler", "Transactions processed into budget reports")
+	_, _ = catalogRepo.AddLineageEdge(tid, src3.ID, src2.ID, "aggregate", "doc-summarizer", "Tickets summarized into reports")
+	_, _ = catalogRepo.AddLineageEdge(tid, src1.ID, src4.ID, "extract", "data-pipeline", "Financial features extracted for ML")
+	_, _ = catalogRepo.AddLineageEdge(tid, src3.ID, src4.ID, "extract", "data-pipeline", "Support ticket features for classification model")
+	_, _ = catalogRepo.AddLineageEdge(tid, src4.ID, src2.ID, "predict", "data-pipeline", "ML predictions included in reports")
+	_, _ = catalogRepo.AddLineageEdge(tid, src1.ID, src5.ID, "audit", "code-reviewer", "Financial transactions audited")
+	_, _ = catalogRepo.AddLineageEdge(tid, src3.ID, src5.ID, "audit", "code-reviewer", "Ticket access events logged")
+
+	// Glossary terms
+	catalogRepo.CreateGlossaryTerm(tid, "PII", "Personally Identifiable Information — any data that can identify a specific individual", "security", "James Wilson", []string{"GDPR", "Data Classification"}, []string{src1.ID, src3.ID})
+	catalogRepo.CreateGlossaryTerm(tid, "SLA", "Service Level Agreement — contractual uptime and freshness guarantees", "operations", "Sarah Chen", []string{"SLO", "Uptime"}, []string{})
+	catalogRepo.CreateGlossaryTerm(tid, "Feature Store", "Centralized repository of ML features for training and serving", "ml-engineering", "Dr. Priya Patel", []string{"ML Pipeline", "Feature Engineering"}, []string{src4.ID})
+	catalogRepo.CreateGlossaryTerm(tid, "Data Contract", "Formal agreement between data producer and consumer on schema, quality, and freshness", "data-governance", "Mike Johnson", []string{"Schema", "Data Quality"}, []string{})
+	catalogRepo.CreateGlossaryTerm(tid, "Data Lineage", "Record of how data flows and transforms across the platform", "data-governance", "Alex Rivera", []string{"ETL", "Provenance"}, []string{})
+
+	// Seed enhanced data quality: contracts, profiles, incidents, anomalies
+	dqRepo.RecordProfile(tid, "budget-reconciler", src1.ID, 2500000, 12, 0.02, 0.001, 98.5, []*dataquality.ColumnProfile{
+		{Name: "amount", Type: "decimal", NullRate: 0, UniqueRate: 0.85, MinValue: "0.01", MaxValue: "9999999.99", MeanValue: "1245.67"},
+		{Name: "account_id", Type: "uuid", NullRate: 0, UniqueRate: 0.018},
+	})
+	dqRepo.RecordProfile(tid, "doc-summarizer", src2.ID, 15000, 8, 0.05, 0.02, 95.0, nil)
+	dqRepo.RecordProfile(tid, "ticket-classifier", src3.ID, 89000, 15, 0.08, 0.005, 92.0, nil)
+
+	dqRepo.CreateContract(tid, "Transaction Data SLA", "Guarantees freshness and completeness of financial transaction data",
+		"budget-reconciler", []string{"doc-summarizer", "data-pipeline"}, src1.ID,
+		map[string]string{"amount": "decimal", "currency": "string", "date": "timestamp"},
+		&dataquality.FreshnessSpec{MaxStalenessSeconds: 3600, RefreshSchedule: "*/30 * * * *"},
+		&dataquality.QualitySpec{MinCompleteness: 98.0, MinAccuracy: 99.5, MaxNullRate: 0.05},
+	)
+	dqRepo.CreateContract(tid, "Ticket Data Contract", "Schema and quality agreement for support ticket data",
+		"ticket-classifier", []string{"doc-summarizer"}, src3.ID,
+		map[string]string{"ticket_id": "string", "priority": "string", "category": "string"},
+		&dataquality.FreshnessSpec{MaxStalenessSeconds: 600, RefreshSchedule: "*/5 * * * *"},
+		&dataquality.QualitySpec{MinCompleteness: 92.0, MinAccuracy: 95.0, MaxNullRate: 0.10},
+	)
+	dqRepo.CreateContract(tid, "ML Feature Freshness", "Ensures ML features are up-to-date for inference",
+		"data-pipeline", []string{"budget-reconciler", "ticket-classifier"}, src4.ID,
+		map[string]string{"feature_name": "string", "feature_value": "float64"},
+		&dataquality.FreshnessSpec{MaxStalenessSeconds: 1800, RefreshSchedule: "*/15 * * * *"},
+		&dataquality.QualitySpec{MinCompleteness: 99.0, MinAccuracy: 99.0, MaxNullRate: 0.01},
+	)
+
+	dqRepo.RecordIncident(tid, "ticket-classifier", "", "High null rate in ticket categories",
+		"Null rate for category field spiked to 15%, above 10% threshold", dataquality.SeverityWarning, nil)
+	dqRepo.RecordIncident(tid, "budget-reconciler", "", "Duplicate transactions detected",
+		"0.5% duplicate rate detected in last batch, normally <0.01%", dataquality.SeverityCritical, nil)
+
+	dqRepo.RecordAnomaly(tid, "budget-reconciler", "completeness", 98.5, 94.2, 4.3, dataquality.SeverityWarning)
+	dqRepo.RecordAnomaly(tid, "ticket-classifier", "null_rate", 0.08, 0.15, 87.5, dataquality.SeverityCritical)
+	dqRepo.RecordAnomaly(tid, "doc-summarizer", "freshness_lag_seconds", 3600, 7800, 116.7, dataquality.SeverityInfo)
+
+	// Seed governance: classification policies, retention policies, PII scans, compliance mappings, stewards
+	govRepo.CreateClassificationPolicy(tid, "PII Auto-Detect", "Automatically classify fields containing PII patterns",
+		`(email|phone|ssn|national_id|name|address)`, "field_name", "restricted", true)
+	govRepo.CreateClassificationPolicy(tid, "Financial Data", "Classify financial data as confidential",
+		`(amount|balance|salary|revenue|cost|price)`, "field_name", "confidential", true)
+	govRepo.CreateClassificationPolicy(tid, "Internal Metadata", "Classify system metadata as internal",
+		`(created_at|updated_at|id|status|type)`, "field_name", "internal", true)
+
+	govRepo.CreateRetentionPolicy(tid, "Restricted Data Retention", "Restricted data must be deleted after 90 days",
+		"restricted", 90, "delete")
+	govRepo.CreateRetentionPolicy(tid, "Confidential Data Retention", "Confidential data archived after 1 year",
+		"confidential", 365, "archive")
+	govRepo.CreateRetentionPolicy(tid, "Audit Log Retention", "Audit logs retained for 5 years per compliance",
+		"audit", 1825, "archive")
+
+	govRepo.RecordAccessLog(tid, src1.ID, "Transaction Database", "budget-reconciler", "read", "system")
+	govRepo.RecordAccessLog(tid, src1.ID, "Transaction Database", "data-pipeline", "read", "system")
+	govRepo.RecordAccessLog(tid, src3.ID, "Ticket Queue API", "ticket-classifier", "read_write", "system")
+	govRepo.RecordAccessLog(tid, src2.ID, "Report Storage", "doc-summarizer", "write", "system")
+	govRepo.RecordAccessLog(tid, src1.ID, "Transaction Database", "", "read", "admin")
+
+	govRepo.RecordPIIScan(tid, src1.ID, "Transaction Database", []*governance.PIIField{
+		{FieldName: "customer_name", PIIType: "person_name", Confidence: 0.98, SampleCount: 42000, Recommendation: "Apply encryption at rest and mask in non-prod"},
+		{FieldName: "email", PIIType: "email_address", Confidence: 0.99, SampleCount: 41000, Recommendation: "Hash for analytics, encrypt for storage"},
+		{FieldName: "account_id", PIIType: "account_number", Confidence: 0.85, SampleCount: 45000, Recommendation: "Tokenize for cross-system references"},
+	}, 12)
+	govRepo.RecordPIIScan(tid, src3.ID, "Ticket Queue API", []*governance.PIIField{
+		{FieldName: "customer_email", PIIType: "email_address", Confidence: 0.99, SampleCount: 55000, Recommendation: "Hash for analytics, encrypt for storage"},
+	}, 15)
+
+	govRepo.CreateComplianceMapping(tid, src1.ID, "Transaction Database", "GDPR", "Art. 5(1)(f)",
+		"Integrity and confidentiality of personal data", "compliant",
+		[]string{"Encryption at rest enabled", "Access logging active", "PII fields identified"})
+	govRepo.CreateComplianceMapping(tid, src1.ID, "Transaction Database", "GDPR", "Art. 17",
+		"Right to erasure (right to be forgotten)", "partial",
+		[]string{"Deletion workflow exists", "Pending: automated erasure on request"})
+	govRepo.CreateComplianceMapping(tid, src3.ID, "Ticket Queue API", "KVKK", "Art. 12",
+		"Data security obligations", "compliant",
+		[]string{"mTLS enforced", "Data classified", "Access logs maintained"})
+	govRepo.CreateComplianceMapping(tid, src4.ID, "ML Feature Store", "GDPR", "Art. 22",
+		"Automated individual decision-making", "not_assessed",
+		nil)
+
+	govRepo.CreateSteward(tid, "sarah.chen", "Sarah Chen", "sarah.chen@company.com",
+		[]string{"finance"}, []string{src1.ID}, "lead_steward")
+	govRepo.CreateSteward(tid, "mike.johnson", "Mike Johnson", "mike.johnson@company.com",
+		[]string{"analytics"}, []string{src2.ID}, "steward")
+	govRepo.CreateSteward(tid, "alex.rivera", "Alex Rivera", "alex.rivera@company.com",
+		[]string{"support"}, []string{src3.ID}, "steward")
+	govRepo.CreateSteward(tid, "james.wilson", "James Wilson", "james.wilson@company.com",
+		[]string{"security", "compliance"}, []string{src5.ID}, "lead_steward")
 
 	log.Info("seeded control-plane demo data",
 		zap.Int("alerts", 5),
@@ -920,7 +1093,13 @@ func seedControlPlaneDemo(
 		zap.Int("rag_sources", 3),
 		zap.Int("prompts", 2),
 		zap.Int("feedback", len(feedbackItems)),
-		zap.Int("catalog_sources", 3),
+		zap.Int("catalog_sources", 5),
+		zap.Int("glossary_terms", 5),
+		zap.Int("data_contracts", 3),
+		zap.Int("governance_policies", 6),
+		zap.Int("pii_scans", 2),
+		zap.Int("compliance_mappings", 4),
+		zap.Int("data_stewards", 4),
 	)
 }
 

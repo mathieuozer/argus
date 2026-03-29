@@ -7,7 +7,6 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  ReferenceLine,
 } from 'recharts';
 import type { DriftPoint } from '../../types/dataquality';
 
@@ -20,8 +19,9 @@ function DriftChart({ data }: DriftChartProps) {
 
   const displayData = data.map((point) => ({
     time: new Date(point.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
-    consistency: +(point.consistency * 100).toFixed(1),
-    baseline: +(point.baseline * 100).toFixed(1),
+    value: +point.value.toFixed(2),
+    baseline: +point.baseline.toFixed(2),
+    isAnomaly: point.is_anomaly,
   }));
 
   return (
@@ -40,7 +40,7 @@ function DriftChart({ data }: DriftChartProps) {
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
             <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'var(--color-text-dim)' }} tickLine={false} />
-            <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: 'var(--color-text-dim)' }} tickLine={false} width={40} />
+            <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-dim)' }} tickLine={false} width={40} />
             <Tooltip
               contentStyle={{
                 backgroundColor: 'var(--color-surface)',
@@ -49,12 +49,19 @@ function DriftChart({ data }: DriftChartProps) {
                 fontSize: '12px',
                 color: 'var(--color-text)',
               }}
-              formatter={(value) => [`${value}%`]}
             />
-            <ReferenceLine y={70} stroke="var(--color-error)" strokeDasharray="5 5" label="Threshold" />
             <Area
               type="monotone"
-              dataKey="consistency"
+              dataKey="baseline"
+              stroke="var(--color-text-muted)"
+              fill="none"
+              strokeWidth={1}
+              strokeDasharray="5 3"
+              dot={false}
+            />
+            <Area
+              type="monotone"
+              dataKey="value"
               stroke="var(--color-warning)"
               fill="url(#drift-gradient)"
               strokeWidth={2}
