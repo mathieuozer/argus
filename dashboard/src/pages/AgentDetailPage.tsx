@@ -63,18 +63,21 @@ function AgentDetailPage() {
       setLoading(true);
       setError(null);
       try {
-        const [agentRes, tsRes, spansRes, tasksRes, alertsRes] = await Promise.all([
-          apiClient.get<AgentDetail>(`/agents/${agentId}`),
+        // Fetch agent detail first — this is required
+        const agentRes = await apiClient.get<AgentDetail>(`/agents/${agentId}`);
+        setAgent(agentRes.data);
+
+        // Fetch supplementary data in parallel — failures are non-fatal
+        const [tsRes, spansRes, tasksRes, alertsRes] = await Promise.allSettled([
           apiClient.get<AgentTimeSeries>(`/agents/${agentId}/timeseries`),
           apiClient.get<TelemetrySpan[]>(`/agents/${agentId}/spans`),
           apiClient.get<Task[]>('/tasks'),
           apiClient.get<PredictiveAlert[]>('/alerts'),
         ]);
-        setAgent(agentRes.data);
-        setTimeSeries(tsRes.data);
-        setSpans(spansRes.data);
-        setTasks(tasksRes.data.filter((t) => t.agent_id === agentId));
-        setAlerts(alertsRes.data.filter((a) => a.agent_id === agentId));
+        if (tsRes.status === 'fulfilled') setTimeSeries(tsRes.value.data);
+        if (spansRes.status === 'fulfilled') setSpans(spansRes.value.data || []);
+        if (tasksRes.status === 'fulfilled') setTasks((tasksRes.value.data || []).filter((t) => t.agent_id === agentId));
+        if (alertsRes.status === 'fulfilled') setAlerts((alertsRes.value.data || []).filter((a) => a.agent_id === agentId));
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -194,13 +197,17 @@ function AgentDetailPage() {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'overview' && timeSeries && (
+      {activeTab === 'overview' && (
         <div className="grid grid-2 animate-fade-in">
-          <TimeSeriesChart title={t('agentDetail.latencyP50')} data={timeSeries.latency_p50} color="var(--color-primary)" unit="ms" />
-          <TimeSeriesChart title={t('agentDetail.latencyP99')} data={timeSeries.latency_p99} color="var(--color-warning)" unit="ms" />
-          <TimeSeriesChart title={t('agentDetail.tokenRate')} data={timeSeries.token_rate} color="var(--color-info)" unit="/s" />
-          <TimeSeriesChart title={t('agentDetail.errorRate')} data={timeSeries.error_rate} color="var(--color-danger)" formatValue={(v) => `${(v * 100).toFixed(1)}%`} />
-          <TimeSeriesChart title={t('agentDetail.costPerTask')} data={timeSeries.cost} color="var(--color-success)" formatValue={(v) => `$${v.toFixed(3)}`} />
+          {timeSeries && (
+            <>
+              <TimeSeriesChart title={t('agentDetail.latencyP50')} data={timeSeries.latency_p50} color="var(--color-primary)" unit="ms" />
+              <TimeSeriesChart title={t('agentDetail.latencyP99')} data={timeSeries.latency_p99} color="var(--color-warning)" unit="ms" />
+              <TimeSeriesChart title={t('agentDetail.tokenRate')} data={timeSeries.token_rate} color="var(--color-info)" unit="/s" />
+              <TimeSeriesChart title={t('agentDetail.errorRate')} data={timeSeries.error_rate} color="var(--color-danger)" formatValue={(v) => `${(v * 100).toFixed(1)}%`} />
+              <TimeSeriesChart title={t('agentDetail.costPerTask')} data={timeSeries.cost} color="var(--color-success)" formatValue={(v) => `$${v.toFixed(3)}`} />
+            </>
+          )}
           <div className="card">
             <div className="card-header">
               <span className="card-title">{t('agents.agentIdentity')}</span>

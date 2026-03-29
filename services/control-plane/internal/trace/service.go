@@ -18,7 +18,8 @@ type Span struct {
 	StartedAt     time.Time         `json:"started_at"`
 	DurationMs    int64             `json:"duration_ms"`
 	Attributes    map[string]string `json:"attributes"`
-	ErrorCode     *string           `json:"error_code,omitempty"`
+	Tier          int               `json:"tier"`
+	ErrorCode     *string           `json:"error_code"`
 }
 
 // SpanNode represents a span in a tree structure with children.
@@ -210,6 +211,27 @@ func (s *Service) buildTree(traceID string, spans []*Span) *TraceDetail {
 		TotalDurationMs: root.DurationMs,
 		HasErrors:       hasErrors,
 	}
+}
+
+// ListSpansByAgent returns all spans for a given agent across all traces.
+func (s *Service) ListSpansByAgent(agentID string) []*Span {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []*Span
+	for _, spans := range s.spans {
+		for _, sp := range spans {
+			if sp.AgentID == agentID {
+				result = append(result, sp)
+			}
+		}
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].StartedAt.After(result[j].StartedAt)
+	})
+
+	return result
 }
 
 // GetFlameGraph returns a flame graph representation for a trace.

@@ -556,15 +556,61 @@ func main() {
 	})))
 	mux.Handle("/api/v1/agents/", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID, _ := tenancy.FromContext(r.Context())
-		agentID := strings.TrimPrefix(r.URL.Path, "/api/v1/agents/")
-		agentID = strings.SplitN(agentID, "/", 2)[0]
+		rest := strings.TrimPrefix(r.URL.Path, "/api/v1/agents/")
+		parts := strings.SplitN(rest, "/", 2)
+		agentID := parts[0]
+
+		// Check sub-route
+		subRoute := ""
+		if len(parts) > 1 {
+			subRoute = parts[1]
+		}
+
+		// Verify agent exists
+		var agent map[string]interface{}
 		for _, a := range seedAgents {
 			if a["id"] == agentID {
-				httputil.WriteJSON(w, http.StatusOK, a, tenantID)
-				return
+				agent = a
+				break
 			}
 		}
-		httputil.WriteError(w, http.StatusNotFound, "AGENT_NOT_FOUND", "agent not found")
+		if agent == nil {
+			httputil.WriteError(w, http.StatusNotFound, "AGENT_NOT_FOUND", "agent not found")
+			return
+		}
+
+		switch subRoute {
+		case "timeseries":
+			now := time.Now()
+			p50 := make([]map[string]interface{}, 0, 24)
+			p99 := make([]map[string]interface{}, 0, 24)
+			tokenRate := make([]map[string]interface{}, 0, 24)
+			errorRate := make([]map[string]interface{}, 0, 24)
+			costSeries := make([]map[string]interface{}, 0, 24)
+			for i := 23; i >= 0; i-- {
+				ts := now.Add(-time.Duration(i) * time.Hour).Format(time.RFC3339)
+				p50 = append(p50, map[string]interface{}{"timestamp": ts, "value": 120 + (i%5)*30})
+				p99 = append(p99, map[string]interface{}{"timestamp": ts, "value": 350 + (i%4)*80})
+				tokenRate = append(tokenRate, map[string]interface{}{"timestamp": ts, "value": 45.0 + float64(i%6)*8})
+				errorRate = append(errorRate, map[string]interface{}{"timestamp": ts, "value": 0.005 + float64(i%8)*0.002})
+				costSeries = append(costSeries, map[string]interface{}{"timestamp": ts, "value": 0.025 + float64(i%5)*0.008})
+			}
+			httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
+				"latency_p50": p50,
+				"latency_p99": p99,
+				"token_rate":  tokenRate,
+				"error_rate":  errorRate,
+				"cost":        costSeries,
+			}, tenantID)
+
+		case "spans":
+			// Return spans for this agent from the trace service
+			allSpans := traceSvc.ListSpansByAgent(agentID)
+			httputil.WriteJSON(w, http.StatusOK, allSpans, tenantID)
+
+		default:
+			httputil.WriteJSON(w, http.StatusOK, agent, tenantID)
+		}
 	})))
 	mux.Handle("/api/v1/tasks", middleware.TenantHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID, _ := tenancy.FromContext(r.Context())
@@ -769,6 +815,7 @@ func seedControlPlaneDemo(
 		op      string
 		dur     int64
 		parent  string
+		tier    int
 		errCode *string
 	}
 	traces := []struct {
@@ -777,26 +824,26 @@ func seedControlPlaneDemo(
 		spans   []spanDef
 	}{
 		{"trace-001", "budget-reconciler", []spanDef{
-			{"reconcile_budget", 1250, "", nil},
-			{"fetch_transactions", 450, "span-001-0", nil},
-			{"compute_totals", 320, "span-001-0", nil},
-			{"write_report", 180, "span-001-0", nil},
+			{"reconcile_budget", 1250, "", 1, nil},
+			{"fetch_transactions", 450, "span-001-0", 1, nil},
+			{"compute_totals", 320, "span-001-0", 1, nil},
+			{"write_report", 180, "span-001-0", 2, nil},
 		}},
 		{"trace-002", "doc-summarizer", []spanDef{
-			{"summarize_document", 2100, "", nil},
-			{"extract_text", 800, "span-002-0", nil},
-			{"generate_summary", 1100, "span-002-0", nil},
+			{"summarize_document", 2100, "", 2, nil},
+			{"extract_text", 800, "span-002-0", 1, nil},
+			{"generate_summary", 1100, "span-002-0", 3, nil},
 		}},
 		{"trace-003", "ticket-classifier", []spanDef{
-			{"classify_ticket", 3500, "", strPtr("TIMEOUT")},
-			{"fetch_ticket", 200, "span-003-0", nil},
-			{"run_classifier", 3000, "span-003-0", strPtr("CONTEXT_OVERFLOW")},
+			{"classify_ticket", 3500, "", 1, strPtr("TIMEOUT")},
+			{"fetch_ticket", 200, "span-003-0", 1, nil},
+			{"run_classifier", 3000, "span-003-0", 2, strPtr("CONTEXT_OVERFLOW")},
 		}},
 		{"trace-004", "data-pipeline", []spanDef{
-			{"ingest_batch", 1800, "", nil},
-			{"validate_schema", 300, "span-004-0", nil},
-			{"transform_records", 900, "span-004-0", nil},
-			{"write_to_store", 400, "span-004-0", nil},
+			{"ingest_batch", 1800, "", 1, nil},
+			{"validate_schema", 300, "span-004-0", 1, nil},
+			{"transform_records", 900, "span-004-0", 2, nil},
+			{"write_to_store", 400, "span-004-0", 1, nil},
 		}},
 	}
 
@@ -813,6 +860,7 @@ func seedControlPlaneDemo(
 				OperationName: sp.op,
 				StartedAt:     now.Add(-time.Duration(i) * time.Minute),
 				DurationMs:    sp.dur,
+				Tier:          sp.tier,
 				Attributes:    map[string]string{"demo": "true"},
 				ErrorCode:     sp.errCode,
 			})
