@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/argus-platform/argus/pkg v0.0.0
 	github.com/jackc/pgx/v5 v5.8.0
-	go.uber.org/zap v1.27.1
+	go.uber.org/zap v1.28.0
 	google.golang.org/grpc v1.79.2
 )
 
