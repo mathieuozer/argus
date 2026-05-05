@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/argus-platform/argus/pkg v0.0.0
-	go.uber.org/zap v1.27.1
+	go.uber.org/zap v1.28.0
 )
 
 require (
